@@ -1,18 +1,37 @@
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, Link } from "react-router-dom";
+import UnPouredMouldDetails from "./UnPouredMouldDetails";
 
-/* ---------- Global Page Wrapper ---------- */
+/* ---------- Professional Page Wrapper ---------- */
 const PageWrapper = ({ title, children }) => (
-  <div className="h-screen w-full bg-[#494949] text-[#FFFFFF] flex flex-col overflow-hidden">
-    <div className="h-2 bg-[#ff9100] flex-shrink-0" />
-    <div className="flex-1 p-8 overflow-y-auto">
-      <h1 className="text-4xl font-bold text-center mb-8 text-[#FFFFFF]">{title}</h1>
-      {children}
+  <div className="h-screen w-full bg-[#2d2d2d] text-white flex flex-col overflow-hidden">
+    {/* Accent Top Bar */}
+    <div className="h-1.5 bg-[#ff9100] flex-shrink-0" />
+    
+    {/* Sub-Header / Navigation */}
+    <div className="bg-[#333333] border-b border-white/10 px-8 py-4 flex items-center justify-between shadow-md">
+      <Link 
+        to="/" 
+        className="flex items-center gap-2 text-[#ff9100] font-bold uppercase tracking-wider text-sm hover:text-white transition-colors"
+      >
+        ← Back to Dashboard
+      </Link>
+      <div className="text-white/40 text-xs font-mono uppercase">Sakthi Auto Component Ltd</div>
     </div>
-    <div className="h-2 bg-[#ff9100] flex-shrink-0" />
+
+    <div className="flex-1 p-8 overflow-y-auto">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-extrabold text-white mb-8 border-l-4 border-[#ff9100] pl-4 uppercase tracking-tight">
+          {title}
+        </h1>
+        {children}
+      </div>
+    </div>
+    
+    <div className="h-1.5 bg-[#ff9100] flex-shrink-0" />
   </div>
 );
 
-/* ---------- Dashboard Home ---------- */
+/* ---------- Refined Dashboard Home ---------- */
 const DashboardHome = () => {
   const navigate = useNavigate();
 
@@ -24,102 +43,109 @@ const DashboardHome = () => {
     { name: "DISA Setting Adjustment", path: "/disa-setting" },
     { name: "DISA Operator Checklist", path: "/disa-operator" },
     { name: "Layered Process Audit", path: "/lpa" },
-    { name: " Moduling Quantity Report", path: "/moulding-qty" },
+    { name: "Moulding Quantity Report", path: "/moulding-qty" },
     { name: "Error Proof Verification", path: "/error-proof" },
   ];
 
   return (
-    <div className="h-screen w-screen bg-[#494949] flex flex-col overflow-hidden">
-      {/* TOP DECORATIVE BORDER */}
-      <div className="h-2 bg-[#ff9100] flex-shrink-0" />
+    <div className="h-screen w-screen bg-[#2d2d2d] flex flex-col overflow-hidden font-sans">
+      {/* Top Border */}
+      <div className="h-1.5 bg-[#ff9100] flex-shrink-0 shadow-[0_0_15px_rgba(255,145,0,0.5)]" />
 
-      {/* HEADER SECTION - MASSIVE TEXT UPDATE */}
-      <div className="py-12 flex-shrink-0 flex justify-center">
+      {/* Corporate Header */}
+      <div className="py-10 flex-shrink-0 flex flex-col items-center">
         <h1 className="
-          w-[90%] 
-          text-[clamp(1rem,3.5vh,3rem)]
-                xl:text-[clamp(1rem,4.5vh,4.5rem)] 
+          text-[2.5rem] 
+          md:text-[3.5rem] 
           font-black 
           text-center 
-          text-[#FFFFFF] 
+          text-white 
           tracking-tighter 
           uppercase 
-          leading-none
-          drop-shadow-2xl
+          leading-tight
+          drop-shadow-lg
         ">
           Sakthi Auto Component Limited
         </h1>
+        <div className="w-32 h-1 bg-[#ff9100] mt-2 rounded-full" />
       </div>
 
-      {/* CENTERED GRID AREA */}
-      <div className="flex-1 flex justify-center items-center w-full h-full p-4">
-        
-        {/* THE GRID */}
-        <div 
-          className="
-            grid 
-            grid-cols-3 
-            grid-rows-3 
-            gap-[15px] 
-            w-[75%] 
-            h-[70%]  /* Slightly reduced height to give header more room */
-          "
-        >
+      {/* Grid Container */}
+      <div className="flex-1 flex justify-center items-center px-10 pb-10">
+        <div className="
+          grid 
+          grid-cols-1 
+          sm:grid-cols-2 
+          lg:grid-cols-3 
+          gap-6 
+          w-full 
+          max-w-6xl 
+          h-full 
+          max-h-[600px]
+        ">
           {buttons.map((btn) => (
             <button
               key={btn.name}
               onClick={() => navigate(btn.path)}
               className="
-                w-full 
-                h-full 
-                bg-[#ff9100]
-                text-[#FFFFFF]
-                
-                /* TEXT SIZE - BALANCED */
-                text-[clamp(1rem,3.5vh,3rem)]
-                xl:text-[clamp(1rem,4.5vh,4.5rem)]
-                font-black
-                
-                /* BORDER RADIUS */
-                rounded-[20px]
-                lg:rounded-[40px]
-                
+                relative
+                group
+                bg-[#383838]
+                border border-white/5
+                text-white
+                rounded-2xl
                 flex
                 items-center
                 justify-center
                 text-center
                 p-6
-                shadow-2xl
+                shadow-xl
                 transition-all
-                duration-150
-                hover:scale-[1.02]
-                hover:brightness-110
+                duration-300
+                hover:bg-[#ff9100]
+                hover:scale-[1.03]
+                hover:shadow-[#ff9100]/20
                 active:scale-95
-                leading-tight
                 overflow-hidden
               "
             >
-              <span className="drop-shadow-xl break-words max-w-full text-[#FFFFFF]">
+              <span className="
+                relative 
+                z-10 
+                text-lg 
+                md:text-xl 
+                font-bold 
+                uppercase 
+                tracking-wide 
+                group-hover:text-white
+              ">
                 {btn.name}
               </span>
+              {/* Subtle background icon/pattern effect */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-10 transition-opacity" />
             </button>
           ))}
         </div>
       </div>
 
-      {/* BOTTOM DECORATIVE BORDER */}
-      <div className="mt-auto h-2 bg-[#ff9100] flex-shrink-0" />
+      {/* Bottom Footer Border */}
+      <div className="h-1.5 bg-[#ff9100] flex-shrink-0" />
     </div>
   );
 };
 
-/* ---------- Page Components ---------- */
+/* ---------- Enhanced Page Component ---------- */
 const SimplePage = ({ title }) => (
   <PageWrapper title={title}>
-    <div className="flex items-center justify-center h-full">
-        <div className="bg-[#3b3b3b] p-20 rounded-[40px] border-4 border-[#ff9100] text-3xl font-bold text-[#FFFFFF] shadow-2xl text-center">
-            Data for {title} will appear here.
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="bg-[#383838] p-16 rounded-3xl border border-white/10 text-xl font-medium text-white/60 shadow-2xl text-center max-w-lg">
+        <div className="mb-4 text-[#ff9100]">
+          <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
         </div>
+        System module for <span className="text-white font-bold">{title}</span> is currently under maintenance or synchronization.
+      </div>
     </div>
   </PageWrapper>
 );
@@ -129,13 +155,20 @@ export default function Dashboard() {
   return (
     <Routes>
       <Route path="/" element={<DashboardHome />} />
-      <Route path="/product" element={<SimplePage title="Product" />} />
-      <Route path="/performance" element={<SimplePage title="Performance" />} />
+      <Route path="/product" element={<SimplePage title="Product Management" />} />
+      <Route path="/performance" element={<SimplePage title="Performance Metrics" />} />
       <Route path="/disamatic-report" element={<SimplePage title="Disamatic Report" />} />
-      <Route path="/unpoured-mould" element={<SimplePage title="Unpoured Mould" />} />
+      <Route
+        path="/unpoured-mould"
+        element={
+          <PageWrapper title="Unpoured Mould Details">
+            <UnPouredMouldDetails />
+          </PageWrapper>
+        }
+      />
       <Route path="/disa-setting" element={<SimplePage title="Setting Adjustment" />} />
       <Route path="/disa-operator" element={<SimplePage title="Operator Checklist" />} />
-      <Route path="/lpa" element={<SimplePage title="Process Audit" />} />
+      <Route path="/lpa" element={<SimplePage title="Layered Process Audit" />} />
       <Route path="/moulding-qty" element={<SimplePage title="Moulding Quantity" />} />
       <Route path="/error-proof" element={<SimplePage title="Error Proofing" />} />
     </Routes>
