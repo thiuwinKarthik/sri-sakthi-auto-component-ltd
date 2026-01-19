@@ -2,13 +2,13 @@ const { sql, poolPromise } = require('../db');
 
 const mouldController = {
   
-  // 1. Get Details & Calculate Total Heat Change
+  // --- 1. Get Details & Calculate Daily Totals ---
   getMouldDetails: async (req, res) => {
     try {
       const { date, disa, shift } = req.query;
       const pool = await poolPromise;
 
-      // Query A: Fetch specific data for the selected Shift
+      // Query A: Fetch specific record for the selected Shift
       const shiftQuery = `
         SELECT * FROM UnPouredMouldDetails 
         WHERE RecordDate = @date AND Disa = @disa AND Shift = @shift
@@ -20,22 +20,33 @@ const mouldController = {
         .input('shift', sql.Int, shift)
         .query(shiftQuery);
 
-      // Query B: Calculate Total Heat Change (Sum of ALL shifts for this Disa & Date)
-      // This sums up TotalChange from Shift 1 + 2 + 3
-      const totalHeatQuery = `
-        SELECT SUM(TotalChange) as DailyTotal 
+      // Query B: Calculate Daily Totals (Sum across all shifts for this Date & Disa)
+      // Added sums for Sand and Pouring
+      const totalsQuery = `
+        SELECT 
+            SUM(TotalChange) as DailyMouldTotal,
+            SUM(SandDelay) as DailySandDelay,
+            SUM(DrySand) as DailyDrySand,
+            SUM(TotalPouring) as DailyPouringTotal
         FROM UnPouredMouldDetails 
         WHERE RecordDate = @date AND Disa = @disa
       `;
 
-      const totalHeatResult = await pool.request()
+      const totalsResult = await pool.request()
         .input('date', sql.Date, date)
         .input('disa', sql.VarChar, disa)
-        .query(totalHeatQuery);
+        .query(totalsQuery);
+
+      const totals = totalsResult.recordset[0];
 
       res.json({
         record: shiftResult.recordset[0] || null,
-        totalHeatChange: totalHeatResult.recordset[0].DailyTotal || 0
+        dailyStats: {
+            totalHeatChange: totals.DailyMouldTotal || 0,
+            totalSandDelay: totals.DailySandDelay || 0,
+            totalDrySand: totals.DailyDrySand || 0,
+            totalPouring: totals.DailyPouringTotal || 0
+        }
       });
 
     } catch (err) {
@@ -44,18 +55,21 @@ const mouldController = {
     }
   },
 
-  // 2. Save or Update (Upsert) Data
+  // --- 2. Save or Update (Upsert) Data ---
   saveMouldDetails: async (req, res) => {
     try {
       const { 
         date, disa, shift, 
-        patternChange, heatCodeChange, mouldBurn, 
-        amcCleaning, mouldCrush, coreFalling, totalChange 
+        // Moulding
+        patternChange, heatCodeChange, mouldBurn, amcCleaning, mouldCrush, coreFalling, totalChange,
+        // Sand Plant
+        sandDelay, drySand,
+        // Pouring
+        nozzleLeakage, spoutPocking, stRod, totalPouring
       } = req.body;
 
       const pool = await poolPromise;
 
-      // Using MERGE to Insert if new, Update if exists
       const query = `
         MERGE UnPouredMouldDetails AS target
         USING (SELECT @date, @disa, @shift) AS source (RecordDate, Disa, Shift)
@@ -63,6 +77,7 @@ const mouldController = {
         
         WHEN MATCHED THEN
             UPDATE SET 
+                -- Moulding
                 PatternChange = @pChange, 
                 HeatCodeChange = @hChange, 
                 MouldBurn = @mBurn, 
@@ -70,30 +85,59 @@ const mouldController = {
                 MouldCrush = @mCrush, 
                 CoreFalling = @cFall, 
                 TotalChange = @tChange,
+                -- Sand Plant
+                SandDelay = @sDelay,
+                DrySand = @dSand,
+                -- Pouring
+                NozzleLeakage = @nLeak,
+                SpoutPocking = @sPock,
+                StRod = @stRod,
+                TotalPouring = @tPouring,
+
                 UpdatedAt = GETDATE()
                 
         WHEN NOT MATCHED THEN
-            INSERT (RecordDate, Disa, Shift, PatternChange, HeatCodeChange, MouldBurn, AmcCleaning, MouldCrush, CoreFalling, TotalChange)
-            VALUES (@date, @disa, @shift, @pChange, @hChange, @mBurn, @amc, @mCrush, @cFall, @tChange);
+            INSERT (
+                RecordDate, Disa, Shift, 
+                PatternChange, HeatCodeChange, MouldBurn, AmcCleaning, MouldCrush, CoreFalling, TotalChange,
+                SandDelay, DrySand,
+                NozzleLeakage, SpoutPocking, StRod, TotalPouring
+            )
+            VALUES (
+                @date, @disa, @shift, 
+                @pChange, @hChange, @mBurn, @amc, @mCrush, @cFall, @tChange,
+                @sDelay, @dSand,
+                @nLeak, @sPock, @stRod, @tPouring
+            );
       `;
 
       await pool.request()
+        // Keys
         .input('date', sql.Date, date)
         .input('disa', sql.VarChar, disa)
         .input('shift', sql.Int, shift)
+        // Moulding Inputs
         .input('pChange', sql.Int, patternChange)
         .input('hChange', sql.Int, heatCodeChange)
         .input('mBurn', sql.Int, mouldBurn)
         .input('amc', sql.Int, amcCleaning)
         .input('mCrush', sql.Int, mouldCrush)
         .input('cFall', sql.Int, coreFalling)
-        .input('tChange', sql.Int, totalChange) // This is the single shift total
+        .input('tChange', sql.Int, totalChange)
+        // Sand Plant Inputs
+        .input('sDelay', sql.Int, sandDelay)
+        .input('dSand', sql.Int, drySand)
+        // Pouring Inputs
+        .input('nLeak', sql.Int, nozzleLeakage)
+        .input('sPock', sql.Int, spoutPocking)
+        .input('stRod', sql.Int, stRod)
+        .input('tPouring', sql.Int, totalPouring)
         .query(query);
 
-      res.json({ success: true, message: 'Record saved successfully' });
+      res.json({ success: true, message: 'All details saved successfully' });
 
     } catch (err) {
-      console.error('Error saving mould details:', err);
+      console.error('Error saving details:', err);
       res.status(500).send('Server Error');
     }
   }
