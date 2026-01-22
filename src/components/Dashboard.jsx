@@ -1,5 +1,6 @@
 import { Routes, Route, useNavigate, Link } from "react-router-dom";
 import UnPouredMouldDetails from "./UnPouredMouldDetails";
+import DisaMachineCheckList from "./DisaMachineCheckList"; // 1. Import the new component
 
 /* ---------- Professional Page Wrapper ---------- */
 const PageWrapper = ({ title, children }) => (
@@ -158,6 +159,8 @@ export default function Dashboard() {
       <Route path="/product" element={<SimplePage title="Product Management" />} />
       <Route path="/performance" element={<SimplePage title="Performance Metrics" />} />
       <Route path="/disamatic-report" element={<SimplePage title="Disamatic Report" />} />
+      
+      {/* Existing Route */}
       <Route
         path="/unpoured-mould"
         element={
@@ -166,8 +169,19 @@ export default function Dashboard() {
           </PageWrapper>
         }
       />
+      
       <Route path="/disa-setting" element={<SimplePage title="Setting Adjustment" />} />
-      <Route path="/disa-operator" element={<SimplePage title="Operator Checklist" />} />
+
+      {/* 2. Updated Route for Operator Checklist */}
+      <Route 
+        path="/disa-operator" 
+        element={
+          <PageWrapper title="DISA Operator Checklist">
+            <DisaMachineCheckList />
+          </PageWrapper>
+        } 
+      />
+
       <Route path="/lpa" element={<SimplePage title="Layered Process Audit" />} />
       <Route path="/moulding-qty" element={<SimplePage title="Moulding Quantity" />} />
       <Route path="/error-proof" element={<SimplePage title="Error Proofing" />} />
