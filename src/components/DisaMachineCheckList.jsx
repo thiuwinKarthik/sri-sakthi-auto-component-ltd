@@ -123,7 +123,7 @@ const DisaMachineCheckList = () => {
       });
       setNotification({ show: true, type: 'success', message: 'Report Logged Successfully.' });
       setIsModalOpen(false);
-      setReportsMap(prev => ({ ...prev, [modalItem.MasterId]: { ...ncForm, MasterId: modalItem.MasterId, Status: 'Pending', Sign: ncForm.sign } }));
+      setReportsMap(prev => ({ ...prev, [modalItem.MasterId]: { ...ncForm, MasterId: modalItem.MasterId, Status: 'Pending', Name: ncForm.sign } }));
       setChecklist(prev => prev.map(c => c.MasterId === modalItem.MasterId ? { ...c, IsDone: false } : c));
     } catch (error) { setNotification({ show: true, type: 'error', message: 'Failed to save report.' }); }
   };
@@ -313,7 +313,7 @@ const DisaMachineCheckList = () => {
           'Corrective Action', 
           'Target Date', 
           'Responsibility', 
-          'Sign', 
+          'Name', 
           'Status'
         ]],
         body: ncRows,
