@@ -155,14 +155,21 @@ const DisaMachineCheckList = () => {
       const year = selectedDate.getFullYear();
       const month = selectedDate.getMonth() + 1;
 
+      // 1. Fetch Data (Checklist + NCR)
       let monthlyLogs = [];
+      let ncReports = [];
+      
       try {
           const res = await axios.get('http://localhost:5000/api/disa-checklist/monthly-report', { 
               params: { month, year, disaMachine: headerData.disaMachine } 
           });
           monthlyLogs = res.data.monthlyLogs || [];
-      } catch (backendErr) { console.warn(backendErr); }
+          ncReports = res.data.ncReports || []; // Capture NCR Data
+      } catch (backendErr) { 
+          console.warn(backendErr); 
+      }
 
+      // ... [Keep existing historyMap logic] ...
       const historyMap = {};
       monthlyLogs.forEach(log => {
         const logDay = log.DayVal; 
@@ -172,25 +179,28 @@ const DisaMachineCheckList = () => {
         else historyMap[key][logDay] = 'N'; 
       });
 
-      const doc = new jsPDF('l', 'mm', 'a4');
+      const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
       const monthName = selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-      // -- Header --
+      // ==========================================
+      // PAGE 1: CHECKLIST (Existing Logic)
+      // ==========================================
+      
+      // Header Page 1
       doc.setLineWidth(0.3);
       doc.rect(10, 10, 40, 20); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
       doc.text("SAKTHI", 30, 18, { align: 'center' }); doc.text("AUTO", 30, 26, { align: 'center' });
       doc.rect(50, 10, 180, 20); doc.setFontSize(16);
       doc.text("DISA MACHINE OPERATOR CHECK SHEET", 140, 22, { align: 'center' });
       
-      // Dynamic Machine Name Box
       doc.rect(230, 10, 57, 20); doc.setFontSize(11);
-      // Use headerData.disaMachine here to display I, II, or III
       doc.text(headerData.disaMachine, 258, 18, { align: 'center' }); 
-      
       doc.line(230, 22, 287, 22);
       doc.setFontSize(10); doc.text(`Month: ${monthName}`, 235, 27);
 
       const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+      
+      // Table Body Construction (Existing)
       const tableBody = checklist.map(item => {
         const row = [String(item.SlNo), item.CheckPointDesc, item.CheckMethod];
         const dayColumns = days.map(d => {
@@ -208,6 +218,7 @@ const DisaMachineCheckList = () => {
           ["", "HOD - MOU", "", ...emptyDays]
       ];
 
+      // Dynamic column styles for days (Existing)
       const dynamicColumnStyles = {};
       for (let i = 3; i < 34; i++) {
         dynamicColumnStyles[i] = { cellWidth: 5, halign: 'center' }; 
@@ -229,27 +240,122 @@ const DisaMachineCheckList = () => {
         didParseCell: function(data) {
            if (data.row.index >= tableBody.length && data.column.index === 1) data.cell.styles.fontStyle = 'bold';
            if (data.column.index > 2) {
-              const text = data.cell.text[0];
-              if (text === 'Y') {
-                 data.cell.styles.font = 'ZapfDingbats';
-                 data.cell.text = '3'; 
-                 data.cell.styles.textColor = [0, 100, 0];
-              } else if (text === 'N') {
-                 data.cell.styles.textColor = [255, 0, 0];
-                 data.cell.text = 'X'; 
-                 data.cell.styles.fontStyle = 'bold';
-              }
+             const text = data.cell.text[0];
+             if (text === 'Y') {
+                data.cell.styles.font = 'ZapfDingbats';
+                data.cell.text = '3'; 
+                data.cell.styles.textColor = [0, 100, 0];
+             } else if (text === 'N') {
+                data.cell.styles.textColor = [255, 0, 0];
+                data.cell.text = 'X'; 
+                data.cell.styles.fontStyle = 'bold';
+             }
            }
         }
       });
 
       const finalY = doc.lastAutoTable.finalY + 6;
-      doc.setFontSize(8);
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal');
       doc.text("Note: If any deviation noticed during the verification, corrective actions should be taken and recorded in the NCR (back-side).", 10, finalY);
       doc.text("QF/07/FBP-13, Rev.No:06 dt 08.10.2025", 10, 200);
-      doc.text("Page 1 of 1", 270, 200);
+      doc.text("Page 1 of 2", 270, 200);
 
-      doc.save(`Disa_Checklist_${headerData.date}_${headerData.disaMachine}.pdf`);
+      // ==========================================
+      // PAGE 2: NON-CONFORMANCE REPORT
+      // ==========================================
+      
+      doc.addPage(); // Add the new page
+
+      // -- Header Page 2 --
+      doc.setDrawColor(0); doc.setLineWidth(0.3);
+      
+      // Logo Box
+      doc.rect(10, 10, 40, 20);
+      doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+      doc.text("SAKTHI", 30, 18, { align: 'center' }); 
+      doc.text("AUTO", 30, 26, { align: 'center' });
+
+      // Title Box
+      doc.rect(50, 10, 237, 20);
+      doc.setFontSize(16);
+      doc.text("DISA MACHINE OPERATOR CHECK SHEET", 168, 18, { align: 'center' });
+      doc.setFontSize(14);
+      doc.text("Non-Conformance Report", 168, 26, { align: 'center' }); // Sub-title
+
+      // -- NCR Table Data Preparation --
+      // Map the fetched NC data to table rows
+      const ncRows = ncReports.map((report, index) => [
+        index + 1,
+        new Date(report.ReportDate).toLocaleDateString('en-GB'), // DD/MM/YYYY
+        report.NonConformityDetails || '',
+        report.Correction || '',
+        report.RootCause || '',
+        report.CorrectiveAction || '',
+        report.TargetDate ? new Date(report.TargetDate).toLocaleDateString('en-GB') : '',
+        report.Responsibility || '',
+        report.Sign || '', // Signature
+        report.Status || ''
+      ]);
+
+      // If no data, add empty rows to maintain structure layout
+      if(ncRows.length === 0) {
+        for(let i=0; i<5; i++) ncRows.push(['', '', '', '', '', '', '', '', '', '']);
+      }
+
+      autoTable(doc, {
+        startY: 35,
+        head: [[
+          'S.No', 
+          'Date', 
+          'Non-Conformities Details', 
+          'Correction', 
+          'Root Cause', 
+          'Corrective Action', 
+          'Target Date', 
+          'Responsibility', 
+          'Sign', 
+          'Status'
+        ]],
+        body: ncRows,
+        theme: 'grid',
+        styles: { 
+            fontSize: 8, 
+            cellPadding: 2, 
+            lineColor: [0, 0, 0], 
+            lineWidth: 0.1, 
+            textColor: [0, 0, 0], 
+            valign: 'top',
+            overflow: 'linebreak' // Wrap long text
+        },
+        headStyles: { 
+            fillColor: [255, 255, 255], 
+            textColor: [0, 0, 0], 
+            lineWidth: 0.1, 
+            lineColor: [0, 0, 0],
+            fontStyle: 'bold',
+            halign: 'center',
+            valign: 'middle'
+        },
+        columnStyles: {
+            0: { cellWidth: 10, halign: 'center' }, // S.No
+            1: { cellWidth: 20, halign: 'center' }, // Date
+            2: { cellWidth: 40 }, // Details
+            3: { cellWidth: 35 }, // Correction
+            4: { cellWidth: 35 }, // Root Cause
+            5: { cellWidth: 35 }, // Corrective Action
+            6: { cellWidth: 20, halign: 'center' }, // Target Date
+            7: { cellWidth: 25 }, // Responsibility
+            8: { cellWidth: 20 }, // Sign
+            9: { cellWidth: 20, halign: 'center' }  // Status
+        }
+      });
+
+      // Footer Page 2
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+      doc.text("QF/07/FBP-13, Rev.No:06 dt 08.10.2025", 10, 200);
+      doc.text("Page 2 of 2", 270, 200);
+
+      doc.save(`Disa_Checklist_Report_${headerData.date}.pdf`);
       setNotification({ show: false });
 
     } catch (error) {

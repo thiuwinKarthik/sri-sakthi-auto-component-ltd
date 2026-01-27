@@ -145,12 +145,14 @@ exports.saveNCReport = async (req, res) => {
 };
 
 // --- 4. Monthly Report (Filter by Machine) ---
+// --- 4. Monthly Report (Filter by Machine) ---
 exports.getMonthlyReport = async (req, res) => {
   try {
     const { month, year, disaMachine } = req.query;
     const pool = await poolPromise;
     
-    const query = `
+    // Query 1: Checklist Status (Existing)
+    const checklistQuery = `
       SELECT MasterId, DAY(LogDate) as DayVal, IsDone
       FROM MachineChecklist_Trans
       WHERE MONTH(LogDate) = @month 
@@ -158,14 +160,34 @@ exports.getMonthlyReport = async (req, res) => {
         AND DisaMachine = @disaMachine
     `;
 
-    const result = await pool.request()
+    // Query 2: Non-Conformance Reports (New)
+    const ncQuery = `
+      SELECT 
+        ReportId, ReportDate, NonConformityDetails, 
+        Correction, RootCause, CorrectiveAction, 
+        TargetDate, Responsibility, Sign, Status
+      FROM DisaNonConformanceReport
+      WHERE MONTH(ReportDate) = @month 
+        AND YEAR(ReportDate) = @year 
+        AND DisaMachine = @disaMachine
+      ORDER BY ReportDate ASC
+    `;
+
+    const request = pool.request()
       .input('month', sql.Int, month)
       .input('year', sql.Int, year)
-      .input('disaMachine', sql.NVarChar, disaMachine)
-      .query(query);
+      .input('disaMachine', sql.NVarChar, disaMachine);
 
-    res.json({ monthlyLogs: result.recordset });
+    const checklistResult = await request.query(checklistQuery);
+    const ncResult = await request.query(ncQuery);
+
+    res.json({ 
+      monthlyLogs: checklistResult.recordset,
+      ncReports: ncResult.recordset // Return NCR data
+    });
+
   } catch (err) {
+    console.error("Monthly Report Error:", err);
     res.status(500).send(err.message);
   }
 };
