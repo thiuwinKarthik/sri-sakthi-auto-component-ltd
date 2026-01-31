@@ -1,4 +1,4 @@
-const { sql, poolPromise } = require('../db');
+const { sql } = require('../db');
 
 const mouldController = {
   
@@ -6,38 +6,25 @@ const mouldController = {
   getMouldDetails: async (req, res) => {
     try {
       const { date, disa, shift } = req.query;
-      const pool = await poolPromise;
 
       // Query A: Fetch specific record for the selected Shift
-      const shiftQuery = `
+      const shiftResult = await sql.query`
         SELECT * FROM UnPouredMouldDetails 
-        WHERE RecordDate = @date AND Disa = @disa AND Shift = @shift
+        WHERE RecordDate = ${date} AND Disa = ${disa} AND Shift = ${shift}
       `;
       
-      const shiftResult = await pool.request()
-        .input('date', sql.Date, date)
-        .input('disa', sql.VarChar, disa)
-        .input('shift', sql.Int, shift)
-        .query(shiftQuery);
-
       // Query B: Calculate Daily Totals (Sum across all shifts for this Date & Disa)
-      // Added sums for Sand and Pouring
-      const totalsQuery = `
+      const totalsResult = await sql.query`
         SELECT 
             SUM(TotalChange) as DailyMouldTotal,
             SUM(SandDelay) as DailySandDelay,
             SUM(DrySand) as DailyDrySand,
             SUM(TotalPouring) as DailyPouringTotal
         FROM UnPouredMouldDetails 
-        WHERE RecordDate = @date AND Disa = @disa
+        WHERE RecordDate = ${date} AND Disa = ${disa}
       `;
 
-      const totalsResult = await pool.request()
-        .input('date', sql.Date, date)
-        .input('disa', sql.VarChar, disa)
-        .query(totalsQuery);
-
-      const totals = totalsResult.recordset[0];
+      const totals = totalsResult.recordset[0] || {};
 
       res.json({
         record: shiftResult.recordset[0] || null,
@@ -68,31 +55,30 @@ const mouldController = {
         nozzleLeakage, spoutPocking, stRod, totalPouring
       } = req.body;
 
-      const pool = await poolPromise;
-
-      const query = `
+      // Using Tagged Template Literals automatically handles parameter types (Int, Date, etc.)
+      await sql.query`
         MERGE UnPouredMouldDetails AS target
-        USING (SELECT @date, @disa, @shift) AS source (RecordDate, Disa, Shift)
+        USING (SELECT ${date} AS RecordDate, ${disa} AS Disa, ${shift} AS Shift) AS source
         ON (target.RecordDate = source.RecordDate AND target.Disa = source.Disa AND target.Shift = source.Shift)
         
         WHEN MATCHED THEN
             UPDATE SET 
                 -- Moulding
-                PatternChange = @pChange, 
-                HeatCodeChange = @hChange, 
-                MouldBurn = @mBurn, 
-                AmcCleaning = @amc, 
-                MouldCrush = @mCrush, 
-                CoreFalling = @cFall, 
-                TotalChange = @tChange,
+                PatternChange = ${patternChange}, 
+                HeatCodeChange = ${heatCodeChange}, 
+                MouldBurn = ${mouldBurn}, 
+                AmcCleaning = ${amcCleaning}, 
+                MouldCrush = ${mouldCrush}, 
+                CoreFalling = ${coreFalling}, 
+                TotalChange = ${totalChange},
                 -- Sand Plant
-                SandDelay = @sDelay,
-                DrySand = @dSand,
+                SandDelay = ${sandDelay},
+                DrySand = ${drySand},
                 -- Pouring
-                NozzleLeakage = @nLeak,
-                SpoutPocking = @sPock,
-                StRod = @stRod,
-                TotalPouring = @tPouring,
+                NozzleLeakage = ${nozzleLeakage},
+                SpoutPocking = ${spoutPocking},
+                StRod = ${stRod},
+                TotalPouring = ${totalPouring},
 
                 UpdatedAt = GETDATE()
                 
@@ -104,35 +90,12 @@ const mouldController = {
                 NozzleLeakage, SpoutPocking, StRod, TotalPouring
             )
             VALUES (
-                @date, @disa, @shift, 
-                @pChange, @hChange, @mBurn, @amc, @mCrush, @cFall, @tChange,
-                @sDelay, @dSand,
-                @nLeak, @sPock, @stRod, @tPouring
+                ${date}, ${disa}, ${shift}, 
+                ${patternChange}, ${heatCodeChange}, ${mouldBurn}, ${amcCleaning}, ${mouldCrush}, ${coreFalling}, ${totalChange},
+                ${sandDelay}, ${drySand},
+                ${nozzleLeakage}, ${spoutPocking}, ${stRod}, ${totalPouring}
             );
       `;
-
-      await pool.request()
-        // Keys
-        .input('date', sql.Date, date)
-        .input('disa', sql.VarChar, disa)
-        .input('shift', sql.Int, shift)
-        // Moulding Inputs
-        .input('pChange', sql.Int, patternChange)
-        .input('hChange', sql.Int, heatCodeChange)
-        .input('mBurn', sql.Int, mouldBurn)
-        .input('amc', sql.Int, amcCleaning)
-        .input('mCrush', sql.Int, mouldCrush)
-        .input('cFall', sql.Int, coreFalling)
-        .input('tChange', sql.Int, totalChange)
-        // Sand Plant Inputs
-        .input('sDelay', sql.Int, sandDelay)
-        .input('dSand', sql.Int, drySand)
-        // Pouring Inputs
-        .input('nLeak', sql.Int, nozzleLeakage)
-        .input('sPock', sql.Int, spoutPocking)
-        .input('stRod', sql.Int, stRod)
-        .input('tPouring', sql.Int, totalPouring)
-        .query(query);
 
       res.json({ success: true, message: 'All details saved successfully' });
 

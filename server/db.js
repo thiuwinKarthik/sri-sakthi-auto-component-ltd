@@ -1,39 +1,33 @@
-const sql = require('mssql/msnodesqlv8');
+// NOTE: We require 'mssql/msnodesqlv8' specifically for Windows Authentication
+const sql = require('mssql/msnodesqlv8'); 
 
-// ===============================
-// Database configuration
-// ===============================
+
 const config = {
-  server: process.env.DB_SERVER || 'localhost',
-  port: Number(process.env.DB_PORT) || 1433,
-  database: process.env.DB_DATABASE || 'FoundryMES',
+  server: process.env.DB_SERVER || 'localhost', 
+  database: process.env.DB_NAME || 'FoundryMES',
+  
+  // ✅ IMPORTANT: If your previous port was 1143, set it here.
+  // (The default is usually 1433, but 1143 is fine if that's how your SQL Server is configured)
+  port: 1433, 
 
-  driver: 'msnodesqlv8',
+  driver: 'msnodesqlv8', // This tells it to use Windows Auth
 
   options: {
-    trustedConnection: true,
-    trustServerCertificate: true
+    trustedConnection: true, // ✅ True = No username/password needed
+    trustServerCertificate: true, // Helps avoid SSL errors on local setups
   },
+};
 
-  pool: {
-    max: 10,
-    min: 0,
-    idleTimeoutMillis: 30000
+const connectDB = async () => {
+  try {
+    // We pass the config to the connect function
+    await sql.connect(config);
+    console.log("✅ MSSQL Connected (Windows Auth)");
+  } catch (err) {
+    console.error("❌ DB Connection Failed:", err.message);
+    // Optional: Log the full error to see details if it fails
+    // console.error(err); 
   }
 };
 
-const poolPromise = new sql.ConnectionPool(config)
-  .connect()
-  .then(pool => {
-    console.log('✅ MSSQL Connected (Windows Auth)');
-    return pool;
-  })
-  .catch(err => {
-    console.error('❌ MSSQL Connection Error:', err);
-    throw err;
-  });
-
-module.exports = {
-  sql,
-  poolPromise
-};
+module.exports = { sql, connectDB };
