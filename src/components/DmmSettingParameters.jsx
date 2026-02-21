@@ -161,7 +161,7 @@ const DmmSettingParameters = () => {
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`DISA MACHINE: ${headerData.disaMachine}`, 10, 28);
+      doc.text(` ${headerData.disaMachine}`, 10, 28);
       const formattedDate = new Date(headerData.date).toLocaleDateString('en-GB');
       doc.text(`DATE: ${formattedDate}`, 280, 28, { align: 'right' });
 
@@ -247,10 +247,17 @@ const DmmSettingParameters = () => {
          currentY = doc.lastAutoTable.finalY + 5; 
          
          if (currentY > 175 && index < 2) {
+             // Add footer QF string before creating new page
+             doc.setFontSize(8);
+             doc.text("QF/07/FBP-13, Rev.No:06 dt 08.10.2025", 10, 200);
              doc.addPage();
              currentY = 15;
          }
       });
+
+      // Add footer QF string on the last page as well
+      doc.setFontSize(8);
+      doc.text("QF/07/FBP-13, Rev.No:06 dt 08.10.2025", 10, 200);
 
       doc.save(`DMM_Setting_Parameters_${headerData.date}.pdf`);
       setNotification({ show: false, type: '', message: '' });

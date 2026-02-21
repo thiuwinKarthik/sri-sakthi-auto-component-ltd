@@ -60,22 +60,21 @@ const BottomLevelAudit = () => {
   const [headerData, setHeaderData] = useState({ 
       date: getShiftDate(),
       supervisorName: '',
-      processLine: 'Line 1'
+      disaMachine: 'DISA - I' // Changed from processLine to disaMachine
   });
   const [notification, setNotification] = useState({ show: false, type: '', message: '' });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalItem, setModalItem] = useState(null);
   const [ncForm, setNcForm] = useState({ ncDetails: '', correction: '', rootCause: '', correctiveAction: '', targetDate: new Date().toISOString().split('T')[0], responsibility: '', sign: '', status: 'Pending' });
 
-  // Make sure the URL points to the newly created backend routes!
   const API_BASE = 'http://localhost:5000/api/bottom-level-audit';
 
-  useEffect(() => { fetchData(); }, [headerData.date, headerData.processLine]); 
+  useEffect(() => { fetchData(); }, [headerData.date, headerData.disaMachine]); 
 
   const fetchData = async () => {
     try {
       const res = await axios.get(`${API_BASE}/details`, { 
-          params: { date: headerData.date, processLine: headerData.processLine } 
+          params: { date: headerData.date, disaMachine: headerData.disaMachine } 
       });
       
       setOperators(res.data.operators);
@@ -150,7 +149,7 @@ const BottomLevelAudit = () => {
           checklistId: modalItem.MasterId, 
           slNo: modalItem.SlNo, 
           reportDate: headerData.date, 
-          processLine: headerData.processLine,
+          disaMachine: headerData.disaMachine, // Changed
           ...ncForm 
       });
       setNotification({ show: true, type: 'success', message: 'Report Logged Successfully.' });
@@ -184,7 +183,7 @@ const BottomLevelAudit = () => {
           items: itemsToSave, 
           sign: headerData.supervisorName || '', 
           date: headerData.date,
-          processLine: headerData.processLine 
+          disaMachine: headerData.disaMachine // Changed
       });
       setNotification({ show: true, type: 'success', message: 'Checklist Saved Successfully!' });
       fetchData(); 
@@ -204,7 +203,7 @@ const BottomLevelAudit = () => {
       
       try {
           const res = await axios.get(`${API_BASE}/monthly-report`, { 
-              params: { month, year, processLine: headerData.processLine } 
+              params: { month, year, disaMachine: headerData.disaMachine } // Changed
           });
           monthlyLogs = res.data.monthlyLogs || [];
           ncReports = res.data.ncReports || [];
@@ -239,7 +238,7 @@ const BottomLevelAudit = () => {
       const doc = new jsPDF('l', 'mm', 'a4'); 
       const monthName = selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-      // PAGE 1 HEADER (Matches Uploaded Image)
+      // PAGE 1 HEADER
       doc.setLineWidth(0.3);
       doc.rect(10, 10, 40, 20); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
       doc.text("SAKTHI", 30, 18, { align: 'center' }); doc.text("AUTO", 30, 26, { align: 'center' });
@@ -247,7 +246,7 @@ const BottomLevelAudit = () => {
       doc.text("LAYERED PROCESS AUDIT - BOTTOM LEVEL", 168, 22, { align: 'center' });
       
       doc.setFontSize(10);
-      doc.text(`PROCESS / LINE NAME : ${headerData.processLine}`, 12, 35);
+      doc.text(`${headerData.disaMachine}`, 12, 35); // Updated Text
       doc.text(`MONTH : ${monthName}`, 235, 35);
 
       const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
@@ -314,7 +313,7 @@ const BottomLevelAudit = () => {
              const rawTextArray = data.cell.text || [];
              const rawTextString = rawTextArray.join('').replace(/\n/g, ''); 
              
-             if (data.row.index === tableBody.length) { // Supervisor Sign Row
+             if (data.row.index === tableBody.length) { 
                 data.cell.styles.fontSize = 3.5; 
                 data.cell.styles.textColor = [0, 0, 0];
                 data.cell.styles.halign = 'center';
@@ -350,7 +349,7 @@ const BottomLevelAudit = () => {
       doc.text("QF/08/MRO - 18, Rev No: 02 dt 01.01.2022", 10, 200);
       doc.text("Page 1 of 2", 270, 200);
 
-      // PAGE 2 (NCR) - Keeping exact same layout for NCR
+      // PAGE 2 (NCR)
       doc.addPage();
       doc.setDrawColor(0); doc.setLineWidth(0.3);
       doc.rect(10, 10, 40, 20);
@@ -415,15 +414,17 @@ const BottomLevelAudit = () => {
             <span className="text-blue-500 text-2xl">📋</span> Bottom Level Audit
           </h2>
           <div className="flex items-center gap-3">
-             <span className="text-blue-400 text-lg font-black uppercase tracking-wider">Line:</span>
+             {/* Changed to DISA dropdown */}
+             <span className="text-blue-400 text-lg font-black uppercase tracking-wider">DISA:</span>
              <select 
-               value={headerData.processLine}
-               onChange={(e) => setHeaderData({...headerData, processLine: e.target.value})}
+               value={headerData.disaMachine}
+               onChange={(e) => setHeaderData({...headerData, disaMachine: e.target.value})}
                className="bg-gray-800 text-white font-bold border-2 border-blue-500 rounded-md p-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
              >
-                <option value="Line 1">Line 1</option>
-                <option value="Line 2">Line 2</option>
-                <option value="Line 3">Line 3</option>
+                <option value="DISA - I">DISA - I</option>
+                <option value="DISA - II">DISA - II</option>
+                <option value="DISA - III">DISA - III</option>
+                <option value="DISA - IV">DISA - IV</option>
              </select>
 
              <span className="text-blue-400 text-lg font-black uppercase tracking-wider ml-4">Date:</span>

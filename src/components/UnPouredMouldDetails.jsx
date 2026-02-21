@@ -150,7 +150,7 @@ const UnPouredMouldDetails = () => {
       doc.text("UN POURED MOULD DETAILS", 148.5, 15, { align: 'center' });
 
       doc.setFontSize(11);
-      doc.text(`DISA: ${headerData.disaMachine}`, 8, 25);
+      doc.text(` ${headerData.disaMachine}`, 8, 25);
       const formattedDate = new Date(headerData.date).toLocaleDateString('en-GB');
       doc.text(`DATE: ${formattedDate}`, 289 - doc.getTextWidth(`DATE: ${formattedDate}`) - 8, 25);
 

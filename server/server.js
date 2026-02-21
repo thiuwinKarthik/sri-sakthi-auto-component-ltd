@@ -10,6 +10,7 @@ const mouldRoutes = require('./routes/mouldRoutes');
 const disaChecklistRoutes = require('./routes/disaChecklistRoutes');
 const bottomLevelRoutes = require('./routes/bottomLevelRoutes');
 const dmmRoutes = require('./routes/dmmRoutes');
+const errorProofRoutes = require('./routes/errorProofRoutes');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api/unpoured-moulds', mouldRoutes);
 app.use('/api/disa-checklist', disaChecklistRoutes);
 app.use('/api/bottom-level-audit', bottomLevelRoutes);
 app.use('/api/dmm-settings', dmmRoutes);
+app.use('/api/error-proof', errorProofRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

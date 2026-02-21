@@ -1,8 +1,9 @@
 import { Routes, Route, useNavigate, Link } from "react-router-dom";
 import UnPouredMouldDetails from "./UnPouredMouldDetails";
-import DisaMachineCheckList from "./DisaMachineCheckList"; // 1. Import the new component
+import DisaMachineCheckList from "./DisaMachineCheckList"; 
 import BottomLevelAudit from "./BottomLevelAudit";
-import DmmSettingParameters from "./DmmSettingParameters"; // 2. Import DMM Settings component
+import DmmSettingParameters from "./DmmSettingParameters"; 
+import ErrorProofVerification from "./ErrorProofVerification"; // 1. Import the new component
 
 /* ---------- Professional Page Wrapper ---------- */
 const PageWrapper = ({ title, children }) => (
@@ -162,7 +163,6 @@ export default function Dashboard() {
       <Route path="/performance" element={<SimplePage title="Performance Metrics" />} />
       <Route path="/disamatic-report" element={<SimplePage title="Disamatic Report" />} />
       
-      {/* Existing Route */}
       <Route
         path="/unpoured-mould"
         element={
@@ -172,11 +172,12 @@ export default function Dashboard() {
         }
       />
       
-      <Route path="/disa-setting" element={<PageWrapper title="DMM Setting Parameters">
-            <DmmSettingParameters />
-          </PageWrapper>} />
+      <Route path="/disa-setting" element={
+        <PageWrapper title="DMM Setting Parameters">
+           <DmmSettingParameters />
+        </PageWrapper>
+      } />
 
-      {/* 2. Updated Route for Operator Checklist */}
       <Route 
         path="/disa-operator" 
         element={
@@ -186,11 +187,24 @@ export default function Dashboard() {
         } 
       />
 
-      <Route path="/lpa" element={<PageWrapper title="Layered Process Audit">
-            <BottomLevelAudit />
-          </PageWrapper>} />
+      <Route path="/lpa" element={
+        <PageWrapper title="Layered Process Audit">
+           <BottomLevelAudit />
+        </PageWrapper>
+      } />
+      
       <Route path="/moulding-qty" element={<SimplePage title="Moulding Quantity" />} />
-      <Route path="/error-proof" element={<SimplePage title="Error Proofing" />} />
+      
+      {/* 2. Updated Route for Error Proof Verification */}
+      <Route 
+        path="/error-proof" 
+        element={
+          <PageWrapper title="Error Proof Verification">
+            <ErrorProofVerification />
+          </PageWrapper>
+        } 
+      />
+      
     </Routes>
   );
 }
