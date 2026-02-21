@@ -1,6 +1,7 @@
 import { Routes, Route, useNavigate, Link } from "react-router-dom";
 import UnPouredMouldDetails from "./UnPouredMouldDetails";
 import DisaMachineCheckList from "./DisaMachineCheckList"; // 1. Import the new component
+import BottomLevelAudit from "./BottomLevelAudit";
 
 /* ---------- Professional Page Wrapper ---------- */
 const PageWrapper = ({ title, children }) => (
@@ -182,7 +183,9 @@ export default function Dashboard() {
         } 
       />
 
-      <Route path="/lpa" element={<SimplePage title="Layered Process Audit" />} />
+      <Route path="/lpa" element={<PageWrapper title="Layered Process Audit">
+            <BottomLevelAudit />
+          </PageWrapper>} />
       <Route path="/moulding-qty" element={<SimplePage title="Moulding Quantity" />} />
       <Route path="/error-proof" element={<SimplePage title="Error Proofing" />} />
     </Routes>
