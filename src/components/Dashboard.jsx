@@ -2,6 +2,7 @@ import { Routes, Route, useNavigate, Link } from "react-router-dom";
 import UnPouredMouldDetails from "./UnPouredMouldDetails";
 import DisaMachineCheckList from "./DisaMachineCheckList"; // 1. Import the new component
 import BottomLevelAudit from "./BottomLevelAudit";
+import DmmSettingParameters from "./DmmSettingParameters"; // 2. Import DMM Settings component
 
 /* ---------- Professional Page Wrapper ---------- */
 const PageWrapper = ({ title, children }) => (
@@ -171,7 +172,9 @@ export default function Dashboard() {
         }
       />
       
-      <Route path="/disa-setting" element={<SimplePage title="Setting Adjustment" />} />
+      <Route path="/disa-setting" element={<PageWrapper title="DMM Setting Parameters">
+            <DmmSettingParameters />
+          </PageWrapper>} />
 
       {/* 2. Updated Route for Operator Checklist */}
       <Route 

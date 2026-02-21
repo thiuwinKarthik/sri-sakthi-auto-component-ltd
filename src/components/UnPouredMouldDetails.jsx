@@ -1,305 +1,387 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { X, CheckCircle, AlertTriangle, Save, Loader, FileDown } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-const UnPouredMouldDetails = () => {
-  // --- State (Same as before) ---
-  const [formData, setFormData] = useState({
-    disa: 'I',
-    date: new Date().toISOString().split('T')[0],
-    shift: '1',
-    // Moulding
-    patternChange: 0,
-    heatCodeChange: 0,
-    mouldBurn: 0,
-    amcCleaning: 0,
-    mouldCrush: 0,
-    coreFalling: 0,
-    // Sand Plant
-    sandDelay: 0,
-    drySand: 0,
-    // Pouring
-    nozzleLeakage: 0,
-    spoutPocking: 0,
-    stRod: 0
-  });
-
-  const [totalChange, setTotalChange] = useState(0); 
-  const [totalPouring, setTotalPouring] = useState(0); 
-
-  const [dailyStats, setDailyStats] = useState({
-    totalHeatChange: 0,
-    totalSandDelay: 0,
-    totalDrySand: 0,
-    totalPouring: 0
-  });
-
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-
-  // --- Logic (Same as before) ---
-  useEffect(() => {
-    const mouldSum = 
-      (parseInt(formData.patternChange) || 0) +
-      (parseInt(formData.heatCodeChange) || 0) +
-      (parseInt(formData.mouldBurn) || 0) +
-      (parseInt(formData.amcCleaning) || 0) +
-      (parseInt(formData.mouldCrush) || 0) +
-      (parseInt(formData.coreFalling) || 0);
-    setTotalChange(mouldSum);
-
-    const pouringSum = 
-      (parseInt(formData.nozzleLeakage) || 0) +
-      (parseInt(formData.spoutPocking) || 0) +
-      (parseInt(formData.stRod) || 0);
-    setTotalPouring(pouringSum);
-
-  }, [formData]);
-
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.date, formData.disa, formData.shift]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get('http://localhost:5000/api/unpoured-moulds/details', {
-        params: {
-          date: formData.date,
-          disa: formData.disa,
-          shift: formData.shift
-        }
-      });
-
-      const { record, dailyStats } = response.data;
-      setDailyStats(dailyStats);
-
-      if (record) {
-        setFormData(prev => ({
-          ...prev,
-          patternChange: record.PatternChange,
-          heatCodeChange: record.HeatCodeChange,
-          mouldBurn: record.MouldBurn,
-          amcCleaning: record.AmcCleaning,
-          mouldCrush: record.MouldCrush,
-          coreFalling: record.CoreFalling,
-          sandDelay: record.SandDelay,
-          drySand: record.DrySand,
-          nozzleLeakage: record.NozzleLeakage,
-          spoutPocking: record.SpoutPocking,
-          stRod: record.StRod
-        }));
-      } else {
-        setFormData(prev => ({
-          ...prev,
-          patternChange: 0, heatCodeChange: 0, mouldBurn: 0, amcCleaning: 0, mouldCrush: 0, coreFalling: 0,
-          sandDelay: 0, drySand: 0,
-          nozzleLeakage: 0, spoutPocking: 0, stRod: 0
-        }));
-      }
-    } catch (error) {
-      console.error("Error loading data:", error);
-    }
-    setLoading(false);
-  };
-
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      await axios.post('http://localhost:5000/api/unpoured-moulds/save', {
-        ...formData,
-        totalChange: totalChange,
-        totalPouring: totalPouring
-      });
-
-      setMessage('Saved Successfully!');
-      setTimeout(() => setMessage(''), 3000);
-      fetchData(); 
-
-    } catch (error) {
-      console.error("Error saving:", error);
-      setMessage('Failed to save.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  // --- UI Components ---
-
-  const InputRow = ({ label, name }) => (
-    <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0 hover:bg-orange-50/30 transition-colors px-2">
-      <label className="text-gray-600 font-medium text-sm">{label}</label>
-      <input 
-        type="number" 
-        name={name} 
-        value={formData[name]} 
-        onChange={handleInputChange}
-        onFocus={(e) => e.target.select()}
-        className="w-20 p-1 text-center font-bold text-gray-800 border border-gray-300 rounded-md focus:border-orange-500 focus:ring-1 focus:ring-orange-200 outline-none text-base"
-      />
-    </div>
-  );
-
-  const SectionHeader = ({ title, icon }) => (
-    <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-orange-100">
-      <span className="text-orange-500">{icon}</span>
-      <h3 className="font-bold text-gray-700 uppercase tracking-wider text-sm">{title}</h3>
-    </div>
-  );
-
-  const TotalRow = ({ label, value }) => (
-    <div className="flex justify-between items-center bg-orange-50 p-3 rounded-lg mt-2">
-      <span className="text-orange-800 font-bold text-xs uppercase">{label}</span>
-      <span className="text-orange-600 font-black text-xl">{value}</span>
-    </div>
-  );
-
+const NotificationModal = ({ data, onClose }) => {
+  if (!data.show) return null;
+  const isError = data.type === 'error';
+  const isLoading = data.type === 'loading';
   return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4 flex justify-center">
-      <div className="w-full max-w-2xl bg-white shadow-xl rounded-2xl overflow-hidden">
-        
-        {/* --- Header --- */}
-        <div className="bg-gray-900 py-6 px-8 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <span className="text-orange-500 text-2xl">⚡</span> Production Loss
-          </h2>
-          <div className="text-gray-400 text-xs font-mono">
-            {new Date(formData.date).toLocaleDateString()}
-          </div>
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className={`border-2 w-full max-w-md p-6 rounded-2xl shadow-2xl bg-white ${isError ? 'border-red-200' : 'border-green-200'}`}>
+        <div className="flex items-center gap-4">
+           {isLoading ? <Loader className="animate-spin text-blue-600" /> : isError ? <AlertTriangle className="text-red-600" /> : <CheckCircle className="text-green-600" />}
+           <div>
+             <h3 className="font-bold text-lg">{isLoading ? 'Processing...' : isError ? 'Error' : 'Success'}</h3>
+             <p className="text-sm text-gray-600">{data.message}</p>
+           </div>
         </div>
-
-        
-        {/* --- Filters Bar (High Visibility Update) --- */}
-<div className="flex flex-wrap gap-4 p-6 bg-slate-100 border-b border-gray-300">
-  <div className="flex-1 min-w-[120px]">
-    {/* Changed text-gray-400 to text-gray-600 for visibility */}
-    <span className="text-[11px] font-black text-gray-600 uppercase block mb-1 tracking-wider">
-      Disa Machine
-    </span>
-    {/* Added text-gray-900 and border-gray-400 for contrast */}
-    <select 
-      name="disa" 
-      value={formData.disa} 
-      onChange={handleInputChange} 
-      className="w-full p-2 text-sm font-bold border-2 border-gray-300 rounded bg-white text-gray-900 focus:border-orange-500 outline-none"
-    >
-      <option value="I">Disa I</option>
-      <option value="II">Disa II</option>
-      <option value="III">Disa III</option>
-    </select>
-  </div>
-
-  <div className="flex-1 min-w-[120px]">
-    <span className="text-[11px] font-black text-gray-600 uppercase block mb-1 tracking-wider">
-      Production Date
-    </span>
-    <input 
-      type="date" 
-      name="date" 
-      value={formData.date} 
-      onChange={handleInputChange} 
-      className="w-full p-2 text-sm font-bold border-2 border-gray-300 rounded bg-white text-gray-900 focus:border-orange-500 outline-none" 
-    />
-  </div>
-
-  <div className="flex-1 min-w-[120px]">
-    <span className="text-[11px] font-black text-gray-600 uppercase block mb-1 tracking-wider">
-      Working Shift
-    </span>
-    <select 
-      name="shift" 
-      value={formData.shift} 
-      onChange={handleInputChange} 
-      className="w-full p-2 text-sm font-bold border-2 border-gray-300 rounded bg-white text-gray-900 focus:border-orange-500 outline-none"
-    >
-      <option value="1">Shift I</option>
-      <option value="2">Shift II</option>
-      <option value="3">Shift III</option>
-    </select>
-  </div>
-</div>
-
-        <div className="p-6 flex flex-col gap-8">
-          
-          {/* --- SECTION 1: Moulding --- */}
-          <div>
-            <SectionHeader title="Moulding Parameters" icon="📦" />
-            <div className="pl-2">
-              <InputRow label="Pattern Change" name="patternChange" />
-              <InputRow label="Heat Code Change" name="heatCodeChange" />
-              <InputRow label="Mould Burn" name="mouldBurn" />
-              <InputRow label="AMC Cleaning" name="amcCleaning" />
-              <InputRow label="Mould Crush" name="mouldCrush" />
-              <InputRow label="Core Falling" name="coreFalling" />
-              <TotalRow label="Moulding Total" value={totalChange} />
-            </div>
-          </div>
-
-          {/* --- SECTION 2: Sand Plant --- */}
-          <div>
-            <SectionHeader title="Sand Plant Details" icon="⏳" />
-            <div className="pl-2">
-              <InputRow label="Sand Delay" name="sandDelay" />
-              <InputRow label="Dry Sand" name="drySand" />
-            </div>
-          </div>
-
-          {/* --- SECTION 3: Pouring --- */}
-          <div>
-            <SectionHeader title="Pouring (Prec Spour)" icon="🔥" />
-            <div className="pl-2">
-              <InputRow label="Nozzle Leakage" name="nozzleLeakage" />
-              <InputRow label="Spout Pocking" name="spoutPocking" />
-              <InputRow label="ST Rod" name="stRod" />
-              <TotalRow label="Pouring Total" value={totalPouring} />
-            </div>
-          </div>
-
-        </div>
-
-        {/* --- Footer / Stats --- */}
-        <div className="bg-slate-50 border-t border-gray-200 p-6">
-          <h4 className="text-center text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Daily Cumulative Totals</h4>
-          
-          <div className="flex justify-between gap-2 mb-6 text-center">
-            <MiniStat label="Moulds" value={dailyStats.totalHeatChange} />
-            <MiniStat label="Sand Dly" value={dailyStats.totalSandDelay} />
-            <MiniStat label="Dry Sand" value={dailyStats.totalDrySand} />
-            <MiniStat label="Pouring" value={dailyStats.totalPouring} isWarning={true} />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {message && (
-              <div className={`text-center text-xs font-bold uppercase p-2 rounded ${message.includes('Failed') ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                {message}
-              </div>
-            )}
-            <button 
-              onClick={handleSave}
-              disabled={loading}
-              className={`w-full py-3 rounded-lg text-white font-bold uppercase tracking-wider shadow-md transition-transform active:scale-95 ${loading ? 'bg-gray-400' : 'bg-orange-500 hover:bg-orange-600'}`}
-            >
-              {loading ? 'Saving...' : 'Save Entry'}
-            </button>
-          </div>
-        </div>
-
+        {!isLoading && <button onClick={onClose} className="mt-4 px-4 py-2 bg-gray-900 text-white rounded text-sm font-bold float-right">Close</button>}
       </div>
     </div>
   );
 };
 
-// Mini Stat Component for the footer
-const MiniStat = ({ label, value, isWarning }) => (
-  <div className="flex-1 bg-white border border-gray-200 rounded p-2 shadow-sm">
-    <div className={`text-xl font-black ${isWarning ? 'text-red-500' : 'text-gray-700'}`}>{value}</div>
-    <div className="text-[9px] text-gray-400 font-bold uppercase">{label}</div>
-  </div>
-);
+const getShiftDate = () => {
+  const now = new Date();
+  if (now.getHours() < 7) now.setDate(now.getDate() - 1);
+  const offset = now.getTimezoneOffset();
+  const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+  return localDate.toISOString().split('T')[0];
+};
+
+// Column Definitions Mapping Exactly to the Uploaded Image
+const columns = [
+  { key: 'patternChange', label: 'PATTERN\nCHANGE', group: 'MOULDING' },
+  { key: 'heatCodeChange', label: 'HEAT CODE\nCHANGE', group: 'MOULDING' },
+  { key: 'mouldBroken', label: 'MOULD\nBROKEN', group: 'MOULDING' },
+  { key: 'amcCleaning', label: 'AMC\nCLEANING', group: 'MOULDING' },
+  { key: 'mouldCrush', label: 'MOULD\nCRUSH', group: 'MOULDING' },
+  { key: 'coreFalling', label: 'CORE\nFALLING', group: 'MOULDING', isLastInGroup: true },
+  
+  { key: 'sandDelay', label: 'SAND\nDELAY', group: 'SAND PLANT' },
+  { key: 'drySand', label: 'DRY\nSAND', group: 'SAND PLANT', isLastInGroup: true },
+  
+  { key: 'nozzleChange', label: 'NOZZLE\nCHANGE', group: 'PREESPOUR' },
+  { key: 'nozzleLeakage', label: 'NOZZLE\nLEAKAGE', group: 'PREESPOUR' },
+  { key: 'spoutPocking', label: 'SPOUT\nPOCKING', group: 'PREESPOUR' },
+  { key: 'stRod', label: 'ST\nROD', group: 'PREESPOUR', isLastInGroup: true },
+  
+  { key: 'qcVent', label: 'QC\nVENT', group: 'QUALITY CONTROL' },
+  { key: 'outMould', label: 'OUT\nMOULD', group: 'QUALITY CONTROL' },
+  { key: 'lowMg', label: 'LOW\nMG', group: 'QUALITY CONTROL' },
+  { key: 'gradeChange', label: 'GRADE\nCHANGE', group: 'QUALITY CONTROL' },
+  { key: 'msiProblem', label: 'MSI\nPROBLEM', group: 'QUALITY CONTROL', isLastInGroup: true },
+  
+  { key: 'brakeDown', label: 'BRAKE\nDOWN', group: 'MAINTENANCE', isLastInGroup: true },
+  { key: 'wom', label: 'WOM', group: 'FURNACE', isLastInGroup: true },
+  { key: 'devTrail', label: 'DEV\nTRAIL', group: 'TOOLING', isLastInGroup: true },
+  
+  { key: 'powerCut', label: 'POWER\nCUT', group: 'OTHERS' },
+  { key: 'plannedOff', label: 'PLANNED\nOFF', group: 'OTHERS' },
+  { key: 'vatCleaning', label: 'VAT\nCLEANING', group: 'OTHERS' },
+  { key: 'others', label: 'OTHERS', group: 'OTHERS', isLastInGroup: true }
+];
+
+const emptyShift = columns.reduce((acc, col) => ({ ...acc, [col.key]: '' }), {});
+
+const UnPouredMouldDetails = () => {
+  const [headerData, setHeaderData] = useState({ date: getShiftDate(), disaMachine: 'DISA - I' });
+  const [shiftsData, setShiftsData] = useState({ 1: { ...emptyShift }, 2: { ...emptyShift }, 3: { ...emptyShift } });
+  const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState({ show: false, type: '', message: '' });
+
+  useEffect(() => { fetchData(); }, [headerData.date, headerData.disaMachine]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get('http://localhost:5000/api/unpoured-moulds/details', { 
+          params: { date: headerData.date, disa: headerData.disaMachine } 
+      });
+      
+      const loadedData = { 1: { ...emptyShift }, 2: { ...emptyShift }, 3: { ...emptyShift } };
+      
+      [1, 2, 3].forEach(shift => {
+          if (res.data[shift]) {
+             columns.forEach(col => {
+                 loadedData[shift][col.key] = res.data[shift][col.key.charAt(0).toUpperCase() + col.key.slice(1)] || '';
+             });
+          }
+      });
+      setShiftsData(loadedData);
+    } catch (error) { 
+      setNotification({ show: true, type: 'error', message: "Failed to load data." });
+    }
+    setLoading(false);
+  };
+
+  const handleInputChange = (shift, key, value) => {
+    setShiftsData(prev => ({
+      ...prev,
+      [shift]: { ...prev[shift], [key]: value }
+    }));
+  };
+
+  const getRowTotal = (shift) => {
+    return columns.reduce((sum, col) => sum + (parseInt(shiftsData[shift][col.key]) || 0), 0);
+  };
+
+  const getColTotal = (key) => {
+    return [1, 2, 3].reduce((sum, shift) => sum + (parseInt(shiftsData[shift][key]) || 0), 0);
+  };
+
+  const getGrandTotal = () => {
+    return [1, 2, 3].reduce((sum, shift) => sum + getRowTotal(shift), 0);
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    const payloadData = { ...shiftsData };
+    [1, 2, 3].forEach(s => { payloadData[s].rowTotal = getRowTotal(s); });
+
+    try {
+      await axios.post('http://localhost:5000/api/unpoured-moulds/save', {
+        date: headerData.date,
+        disa: headerData.disaMachine,
+        shiftsData: payloadData
+      });
+      setNotification({ show: true, type: 'success', message: 'Data Saved Successfully!' });
+      setTimeout(() => setNotification({ show: false }), 3000);
+    } catch (error) {
+      setNotification({ show: true, type: 'error', message: 'Failed to save data.' });
+    }
+    setLoading(false);
+  };
+
+  // --- PDF GENERATION LOGIC (UPDATED FOR PERFECT ALIGNMENT & DASHES) ---
+  const generatePDF = () => {
+    setNotification({ show: true, type: 'loading', message: 'Generating PDF...' });
+
+    try {
+      // Create landscape document
+      const doc = new jsPDF('l', 'mm', 'a4'); 
+
+      // Titles and Headers
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text("UN POURED MOULD DETAILS", 148.5, 15, { align: 'center' });
+
+      doc.setFontSize(11);
+      doc.text(`DISA: ${headerData.disaMachine}`, 8, 25);
+      const formattedDate = new Date(headerData.date).toLocaleDateString('en-GB');
+      doc.text(`DATE: ${formattedDate}`, 289 - doc.getTextWidth(`DATE: ${formattedDate}`) - 8, 25);
+
+      // Construct Grouped Headers (Row 1)
+      const headRow1 = [
+        { content: 'SHIFT', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+        { content: 'MOULDING', colSpan: 6, styles: { halign: 'center' } },
+        { content: 'SAND PLANT', colSpan: 2, styles: { halign: 'center' } },
+        { content: 'PREESPOUR', colSpan: 4, styles: { halign: 'center' } },
+        { content: 'QUALITY CONTROL', colSpan: 5, styles: { halign: 'center' } },
+        { content: 'MAINTENANCE', colSpan: 1, styles: { halign: 'center' } },
+        { content: 'FURNACE', colSpan: 1, styles: { halign: 'center' } },
+        { content: 'TOOLING', colSpan: 1, styles: { halign: 'center' } },
+        { content: 'OTHERS', colSpan: 4, styles: { halign: 'center' } },
+        { content: 'TOTAL', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fillColor: [220, 220, 220] } }
+      ];
+
+      // Construct Sub Headers (Row 2)
+      const headRow2 = columns.map(col => ({
+        content: col.label, // Includes \n to wrap text vertically
+        styles: { halign: 'center', valign: 'middle', fontSize: 5.5 } // Smaller font to avoid awkward wraps
+      }));
+
+      // Map Body Data (Shifts 1, 2, 3)
+      const bodyRows = [1, 2, 3].map(shift => {
+        const row = [shift.toString()];
+        columns.forEach(col => {
+          const val = shiftsData[shift][col.key];
+          // ✅ If empty or null, put a dash "-"
+          row.push(val === '' || val === null || val === undefined ? '-' : val.toString());
+        });
+        
+        const rowTotal = getRowTotal(shift);
+        row.push(rowTotal === 0 ? '-' : rowTotal.toString());
+        return row;
+      });
+
+      // Map Final Total Row
+      const totalRow = ['TOTAL'];
+      columns.forEach(col => {
+        const colTotal = getColTotal(col.key);
+        // ✅ If column total is 0, put a dash "-"
+        totalRow.push(colTotal === 0 ? '-' : colTotal.toString());
+      });
+      
+      const grandTotal = getGrandTotal();
+      totalRow.push(grandTotal === 0 ? '-' : grandTotal.toString());
+      
+      bodyRows.push(totalRow);
+
+      // Generate Table using AutoTable
+      autoTable(doc, {
+        startY: 32,
+        margin: { left: 5, right: 5 }, // Stretches columns to give them more breathing room
+        head: [headRow1, headRow2],
+        body: bodyRows,
+        theme: 'grid',
+        styles: { 
+            fontSize: 8, 
+            cellPadding: { top: 3.5, right: 1, bottom: 3.5, left: 1 }, // Creates neat vertical box spacing
+            lineColor: [0, 0, 0], 
+            lineWidth: 0.15, 
+            textColor: [0, 0, 0],
+            halign: 'center',
+            valign: 'middle'
+        },
+        headStyles: { 
+            fillColor: [240, 240, 240], 
+            textColor: [0, 0, 0], 
+            fontStyle: 'bold',
+            minCellHeight: 12 // Keeps header tall and clean
+        },
+        bodyStyles: {
+            minCellHeight: 10 // Paces out the rows so numbers aren't crammed
+        },
+        didParseCell: function(data) {
+           // Emphasize the final TOTAL row
+           if (data.section === 'body' && data.row.index === bodyRows.length - 1) {
+               data.cell.styles.fontStyle = 'bold';
+               data.cell.styles.fillColor = [240, 240, 240];
+           }
+        }
+      });
+
+      // Save PDF
+      doc.save(`UnPoured_Mould_Details_${headerData.date}.pdf`);
+      setNotification({ show: false, type: '', message: '' });
+
+    } catch (error) {
+      console.error("PDF Gen Error:", error);
+      setNotification({ show: true, type: 'error', message: `PDF Generation Failed: ${error.message}` });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 py-10 px-4 flex justify-center pb-24">
+      
+      <NotificationModal data={notification} onClose={() => setNotification({ ...notification, show: false })} />
+
+      <div className="w-full max-w-[98%] bg-white shadow-xl rounded-2xl flex flex-col overflow-hidden">
+        
+        {/* --- Header Bar --- */}
+        <div className="bg-gray-900 py-6 px-8 flex justify-between items-center rounded-t-2xl">
+          <h2 className="text-xl font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <span className="text-orange-500 text-2xl">📉</span> Un Poured Mould Details
+          </h2>
+          <div className="flex items-center gap-3">
+             <select 
+               value={headerData.disaMachine}
+               onChange={(e) => setHeaderData({...headerData, disaMachine: e.target.value})}
+               className="bg-gray-800 text-white font-bold border-2 border-orange-500 rounded-md p-2 text-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+             >
+                <option value="DISA - I">DISA - I</option>
+                <option value="DISA - II">DISA - II</option>
+                <option value="DISA - III">DISA - III</option>
+                <option value="DISA - IV">DISA - IV</option>
+             </select>
+
+             <span className="text-orange-400 text-lg font-black uppercase tracking-wider">Date:</span>
+             <div className="bg-gray-100 text-gray-600 font-bold border-2 border-gray-400 rounded-md p-2 text-lg cursor-not-allowed shadow-inner select-none">
+                 {new Date(headerData.date).toLocaleDateString('en-GB')}
+             </div>
+          </div>
+        </div>
+
+        {/* --- Excel Table Section --- */}
+        <div className="p-6 overflow-x-auto min-h-[400px] custom-scrollbar">
+          <table className="w-full text-center border-collapse table-fixed min-w-[2300px]">
+            
+            <thead className="bg-gray-100">
+              <tr className="text-xs text-gray-600 uppercase border-y-2 border-orange-200">
+                <th className="border border-gray-300 p-3 w-20  left-0 bg-gray-100 z-10" rowSpan="2">SHIFT</th>
+                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="6">MOULDING</th>
+                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="2">SAND PLANT</th>
+                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="4">PREESPOUR</th>
+                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="5">QUALITY CONTROL</th>
+                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="1">MAINTENANCE</th>
+                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="1">FURNACE</th>
+                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="1">TOOLING</th>
+                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="4">OTHERS</th>
+                <th className="border border-gray-300 p-3 w-24  right-0 bg-gray-200 z-10 border-l-2 border-l-orange-300" rowSpan="2">TOTAL</th>
+              </tr>
+              
+              <tr className="text-[10px] text-gray-500 uppercase tracking-wide bg-gray-50">
+                {columns.map((col, idx) => (
+                  <th 
+                    key={idx} 
+                    className={`border border-gray-300 p-2 align-bottom whitespace-pre-wrap leading-snug w-20 ${col.isLastInGroup ? 'border-r-2 border-r-gray-400' : ''}`}
+                  >
+                    {col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody>
+              {[1, 2, 3].map(shift => (
+                <tr key={shift} className="hover:bg-orange-50/30 transition-colors group h-14">
+                  <td className="border border-gray-300 font-black text-gray-700 bg-gray-50  left-0 z-10 group-hover:bg-orange-50/80">
+                    {shift}
+                  </td>
+                  
+                  {columns.map(col => (
+                    <td key={col.key} className={`border border-gray-300 p-0 relative ${col.isLastInGroup ? 'border-r-2 border-r-gray-400' : ''}`}>
+                      <input 
+                        type="number" 
+                        min="0"
+                        value={shiftsData[shift][col.key]} 
+                        onChange={(e) => handleInputChange(shift, col.key, e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        className="absolute inset-0 w-full h-full text-center text-sm font-bold text-gray-800 bg-transparent outline-none focus:bg-orange-100 focus:ring-inset focus:ring-2 focus:ring-orange-500 [&::-webkit-inner-spin-button]:appearance-none transition-colors"
+                      />
+                    </td>
+                  ))}
+                  
+                  <td className="border border-gray-300 font-bold text-gray-800 bg-gray-100  right-0 z-10 border-l-2 border-l-orange-300">
+                     {getRowTotal(shift) || ''}
+                  </td>
+                </tr>
+              ))}
+
+              {/* Final TOTAL Row */}
+              <tr className="bg-gray-200 h-14 font-black">
+                <td className="border border-gray-400 text-gray-800  left-0 z-10 bg-gray-200">TOTAL</td>
+                
+                {columns.map(col => (
+                   <td key={col.key} className={`border border-gray-400 text-gray-800 ${col.isLastInGroup ? 'border-r-2 border-r-gray-500' : ''}`}>
+                      {getColTotal(col.key) || ''}
+                   </td>
+                ))}
+                
+                <td className="border border-gray-400 text-xl text-orange-800 bg-orange-200  right-0 z-10 border-l-2 border-l-orange-400 shadow-inner">
+                   {getGrandTotal() || '0'}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* --- Footer Action Bar --- */}
+        <div id="checklist-footer" className="bg-slate-100 p-8 border-t border-gray-200  bottom-0 z-20 flex justify-end gap-6 rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+           
+           {/* ✅ Added PDF Download Button */}
+           <button 
+             onClick={generatePDF} 
+             className="bg-white border-2 border-gray-900 text-gray-900 hover:bg-gray-200 font-bold py-3 px-6 rounded-lg shadow-md uppercase flex items-center gap-2 mt-auto transition-colors"
+           >
+             <FileDown size={20} /> PDF
+           </button>
+
+           <button 
+             onClick={handleSave}
+             disabled={loading}
+             className="bg-gray-900 hover:bg-orange-600 text-white font-bold py-3 px-12 rounded-lg shadow-lg uppercase mt-auto transition-colors flex items-center gap-3"
+           >
+             {loading ? <Loader className="animate-spin w-5 h-5" /> : <Save className="w-5 h-5" />}
+             {loading ? 'Saving...' : 'Save All Shifts'}
+           </button>
+        </div>
+
+      </div>
+
+      {/* Tailwind friendly scrollbar styling embedded */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar { height: 12px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      `}} />
+    </div>
+  );
+};
 
 export default UnPouredMouldDetails;

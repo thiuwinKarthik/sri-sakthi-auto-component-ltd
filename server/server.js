@@ -9,6 +9,7 @@ const { connectDB } = require('./db'); // Ensure this path matches your folder s
 const mouldRoutes = require('./routes/mouldRoutes');
 const disaChecklistRoutes = require('./routes/disaChecklistRoutes');
 const bottomLevelRoutes = require('./routes/bottomLevelRoutes');
+const dmmRoutes = require('./routes/dmmRoutes');
 
 const app = express();
 
@@ -23,5 +24,7 @@ connectDB(); // This triggers the connection and prints the console log
 app.use('/api/unpoured-moulds', mouldRoutes);
 app.use('/api/disa-checklist', disaChecklistRoutes);
 app.use('/api/bottom-level-audit', bottomLevelRoutes);
+app.use('/api/dmm-settings', dmmRoutes);
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
