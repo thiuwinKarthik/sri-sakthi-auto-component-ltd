@@ -12,11 +12,11 @@ const NotificationModal = ({ data, onClose }) => {
     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className={`border-2 w-full max-w-md p-6 rounded-2xl shadow-2xl bg-white ${isError ? 'border-red-200' : 'border-green-200'}`}>
         <div className="flex items-center gap-4">
-           {isLoading ? <Loader className="animate-spin text-blue-600" /> : isError ? <AlertTriangle className="text-red-600" /> : <CheckCircle className="text-green-600" />}
-           <div>
-             <h3 className="font-bold text-lg">{isLoading ? 'Processing...' : isError ? 'Error' : 'Success'}</h3>
-             <p className="text-sm text-gray-600">{data.message}</p>
-           </div>
+          {isLoading ? <Loader className="animate-spin text-blue-600" /> : isError ? <AlertTriangle className="text-red-600" /> : <CheckCircle className="text-green-600" />}
+          <div>
+            <h3 className="font-bold text-lg">{isLoading ? 'Processing...' : isError ? 'Error' : 'Success'}</h3>
+            <p className="text-sm text-gray-600">{data.message}</p>
+          </div>
         </div>
         {!isLoading && <button onClick={onClose} className="mt-4 px-4 py-2 bg-gray-900 text-white rounded text-sm font-bold float-right">Close</button>}
       </div>
@@ -32,44 +32,12 @@ const getShiftDate = () => {
   return localDate.toISOString().split('T')[0];
 };
 
-// Column Definitions Mapping Exactly to the Uploaded Image
-const columns = [
-  { key: 'patternChange', label: 'PATTERN\nCHANGE', group: 'MOULDING' },
-  { key: 'heatCodeChange', label: 'HEAT CODE\nCHANGE', group: 'MOULDING' },
-  { key: 'mouldBroken', label: 'MOULD\nBROKEN', group: 'MOULDING' },
-  { key: 'amcCleaning', label: 'AMC\nCLEANING', group: 'MOULDING' },
-  { key: 'mouldCrush', label: 'MOULD\nCRUSH', group: 'MOULDING' },
-  { key: 'coreFalling', label: 'CORE\nFALLING', group: 'MOULDING', isLastInGroup: true },
-  
-  { key: 'sandDelay', label: 'SAND\nDELAY', group: 'SAND PLANT' },
-  { key: 'drySand', label: 'DRY\nSAND', group: 'SAND PLANT', isLastInGroup: true },
-  
-  { key: 'nozzleChange', label: 'NOZZLE\nCHANGE', group: 'PREESPOUR' },
-  { key: 'nozzleLeakage', label: 'NOZZLE\nLEAKAGE', group: 'PREESPOUR' },
-  { key: 'spoutPocking', label: 'SPOUT\nPOCKING', group: 'PREESPOUR' },
-  { key: 'stRod', label: 'ST\nROD', group: 'PREESPOUR', isLastInGroup: true },
-  
-  { key: 'qcVent', label: 'QC\nVENT', group: 'QUALITY CONTROL' },
-  { key: 'outMould', label: 'OUT\nMOULD', group: 'QUALITY CONTROL' },
-  { key: 'lowMg', label: 'LOW\nMG', group: 'QUALITY CONTROL' },
-  { key: 'gradeChange', label: 'GRADE\nCHANGE', group: 'QUALITY CONTROL' },
-  { key: 'msiProblem', label: 'MSI\nPROBLEM', group: 'QUALITY CONTROL', isLastInGroup: true },
-  
-  { key: 'brakeDown', label: 'BRAKE\nDOWN', group: 'MAINTENANCE', isLastInGroup: true },
-  { key: 'wom', label: 'WOM', group: 'FURNACE', isLastInGroup: true },
-  { key: 'devTrail', label: 'DEV\nTRAIL', group: 'TOOLING', isLastInGroup: true },
-  
-  { key: 'powerCut', label: 'POWER\nCUT', group: 'OTHERS' },
-  { key: 'plannedOff', label: 'PLANNED\nOFF', group: 'OTHERS' },
-  { key: 'vatCleaning', label: 'VAT\nCLEANING', group: 'OTHERS' },
-  { key: 'others', label: 'OTHERS', group: 'OTHERS', isLastInGroup: true }
-];
 
-const emptyShift = columns.reduce((acc, col) => ({ ...acc, [col.key]: '' }), {});
 
 const UnPouredMouldDetails = () => {
   const [headerData, setHeaderData] = useState({ date: getShiftDate(), disaMachine: 'DISA - I' });
-  const [shiftsData, setShiftsData] = useState({ 1: { ...emptyShift }, 2: { ...emptyShift }, 3: { ...emptyShift } });
+  const [columns, setColumns] = useState([]);
+  const [shiftsData, setShiftsData] = useState({ 1: {}, 2: {}, 3: {} });
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ show: false, type: '', message: '' });
 
@@ -78,21 +46,13 @@ const UnPouredMouldDetails = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/unpoured-moulds/details', { 
-          params: { date: headerData.date, disa: headerData.disaMachine } 
+      const res = await axios.get('http://localhost:5000/api/unpoured-moulds/details', {
+        params: { date: headerData.date, disa: headerData.disaMachine }
       });
-      
-      const loadedData = { 1: { ...emptyShift }, 2: { ...emptyShift }, 3: { ...emptyShift } };
-      
-      [1, 2, 3].forEach(shift => {
-          if (res.data[shift]) {
-             columns.forEach(col => {
-                 loadedData[shift][col.key] = res.data[shift][col.key.charAt(0).toUpperCase() + col.key.slice(1)] || '';
-             });
-          }
-      });
-      setShiftsData(loadedData);
-    } catch (error) { 
+
+      setColumns(res.data.masterCols || []);
+      setShiftsData(res.data.shiftsData || { 1: {}, 2: {}, 3: {} });
+    } catch (error) {
       setNotification({ show: true, type: 'error', message: "Failed to load data." });
     }
     setLoading(false);
@@ -142,7 +102,7 @@ const UnPouredMouldDetails = () => {
 
     try {
       // Create landscape document
-      const doc = new jsPDF('l', 'mm', 'a4'); 
+      const doc = new jsPDF('l', 'mm', 'a4');
 
       // Titles and Headers
       doc.setFontSize(16);
@@ -182,7 +142,7 @@ const UnPouredMouldDetails = () => {
           // ✅ If empty or null, put a dash "-"
           row.push(val === '' || val === null || val === undefined ? '-' : val.toString());
         });
-        
+
         const rowTotal = getRowTotal(shift);
         row.push(rowTotal === 0 ? '-' : rowTotal.toString());
         return row;
@@ -195,10 +155,10 @@ const UnPouredMouldDetails = () => {
         // ✅ If column total is 0, put a dash "-"
         totalRow.push(colTotal === 0 ? '-' : colTotal.toString());
       });
-      
+
       const grandTotal = getGrandTotal();
       totalRow.push(grandTotal === 0 ? '-' : grandTotal.toString());
-      
+
       bodyRows.push(totalRow);
 
       // Generate Table using AutoTable
@@ -208,30 +168,30 @@ const UnPouredMouldDetails = () => {
         head: [headRow1, headRow2],
         body: bodyRows,
         theme: 'grid',
-        styles: { 
-            fontSize: 8, 
-            cellPadding: { top: 3.5, right: 1, bottom: 3.5, left: 1 }, // Creates neat vertical box spacing
-            lineColor: [0, 0, 0], 
-            lineWidth: 0.15, 
-            textColor: [0, 0, 0],
-            halign: 'center',
-            valign: 'middle'
+        styles: {
+          fontSize: 8,
+          cellPadding: { top: 3.5, right: 1, bottom: 3.5, left: 1 }, // Creates neat vertical box spacing
+          lineColor: [0, 0, 0],
+          lineWidth: 0.15,
+          textColor: [0, 0, 0],
+          halign: 'center',
+          valign: 'middle'
         },
-        headStyles: { 
-            fillColor: [240, 240, 240], 
-            textColor: [0, 0, 0], 
-            fontStyle: 'bold',
-            minCellHeight: 12 // Keeps header tall and clean
+        headStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          minCellHeight: 12 // Keeps header tall and clean
         },
         bodyStyles: {
-            minCellHeight: 10 // Paces out the rows so numbers aren't crammed
+          minCellHeight: 10 // Paces out the rows so numbers aren't crammed
         },
-        didParseCell: function(data) {
-           // Emphasize the final TOTAL row
-           if (data.section === 'body' && data.row.index === bodyRows.length - 1) {
-               data.cell.styles.fontStyle = 'bold';
-               data.cell.styles.fillColor = [240, 240, 240];
-           }
+        didParseCell: function (data) {
+          // Emphasize the final TOTAL row
+          if (data.section === 'body' && data.row.index === bodyRows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [240, 240, 240];
+          }
         }
       });
 
@@ -247,57 +207,66 @@ const UnPouredMouldDetails = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 py-10 px-4 flex justify-center pb-24">
-      
+
       <NotificationModal data={notification} onClose={() => setNotification({ ...notification, show: false })} />
 
       <div className="w-full max-w-[98%] bg-white shadow-xl rounded-2xl flex flex-col overflow-hidden">
-        
+
         {/* --- Header Bar --- */}
         <div className="bg-gray-900 py-6 px-8 flex justify-between items-center rounded-t-2xl">
           <h2 className="text-xl font-bold text-white uppercase tracking-wider flex items-center gap-2">
             <span className="text-orange-500 text-2xl">📉</span> Un Poured Mould Details
           </h2>
           <div className="flex items-center gap-3">
-             <select 
-               value={headerData.disaMachine}
-               onChange={(e) => setHeaderData({...headerData, disaMachine: e.target.value})}
-               className="bg-gray-800 text-white font-bold border-2 border-orange-500 rounded-md p-2 text-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-             >
-                <option value="DISA - I">DISA - I</option>
-                <option value="DISA - II">DISA - II</option>
-                <option value="DISA - III">DISA - III</option>
-                <option value="DISA - IV">DISA - IV</option>
-             </select>
+            <select
+              value={headerData.disaMachine}
+              onChange={(e) => setHeaderData({ ...headerData, disaMachine: e.target.value })}
+              className="bg-gray-800 text-white font-bold border-2 border-orange-500 rounded-md p-2 text-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="DISA - I">DISA - I</option>
+              <option value="DISA - II">DISA - II</option>
+              <option value="DISA - III">DISA - III</option>
+              <option value="DISA - IV">DISA - IV</option>
+            </select>
 
-             <span className="text-orange-400 text-lg font-black uppercase tracking-wider">Date:</span>
-             <div className="bg-gray-100 text-gray-600 font-bold border-2 border-gray-400 rounded-md p-2 text-lg cursor-not-allowed shadow-inner select-none">
-                 {new Date(headerData.date).toLocaleDateString('en-GB')}
-             </div>
+            <span className="text-orange-400 text-lg font-black uppercase tracking-wider">Date:</span>
+            <div className="bg-gray-100 text-gray-600 font-bold border-2 border-gray-400 rounded-md p-2 text-lg cursor-not-allowed shadow-inner select-none">
+              {new Date(headerData.date).toLocaleDateString('en-GB')}
+            </div>
           </div>
         </div>
 
         {/* --- Excel Table Section --- */}
         <div className="p-6 overflow-x-auto min-h-[400px] custom-scrollbar">
           <table className="w-full text-center border-collapse table-fixed min-w-[2300px]">
-            
+
             <thead className="bg-gray-100">
+              {/* Dynamic Group Header Row — computed from fetched columns */}
               <tr className="text-xs text-gray-600 uppercase border-y-2 border-orange-200">
-                <th className="border border-gray-300 p-3 w-20  left-0 bg-gray-100 z-10" rowSpan="2">SHIFT</th>
-                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="6">MOULDING</th>
-                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="2">SAND PLANT</th>
-                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="4">PREESPOUR</th>
-                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="5">QUALITY CONTROL</th>
-                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="1">MAINTENANCE</th>
-                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="1">FURNACE</th>
-                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="1">TOOLING</th>
-                <th className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan="4">OTHERS</th>
-                <th className="border border-gray-300 p-3 w-24  right-0 bg-gray-200 z-10 border-l-2 border-l-orange-300" rowSpan="2">TOTAL</th>
+                <th className="border border-gray-300 p-3 w-20 bg-gray-100 z-10" rowSpan="2">SHIFT</th>
+                {(() => {
+                  // Build group spans dynamically
+                  const groups = [];
+                  columns.forEach(col => {
+                    if (groups.length === 0 || groups[groups.length - 1].name !== col.group) {
+                      groups.push({ name: col.group, count: 1 });
+                    } else {
+                      groups[groups.length - 1].count++;
+                    }
+                  });
+                  return groups.map((g, i) => (
+                    <th key={i} className="border border-gray-300 p-2 border-r-2 border-r-gray-400" colSpan={g.count}>
+                      {g.name}
+                    </th>
+                  ));
+                })()}
+                <th className="border border-gray-300 p-3 w-24 bg-gray-200 z-10 border-l-2 border-l-orange-300" rowSpan="2">TOTAL</th>
               </tr>
-              
+
               <tr className="text-[10px] text-gray-500 uppercase tracking-wide bg-gray-50">
                 {columns.map((col, idx) => (
-                  <th 
-                    key={idx} 
+                  <th
+                    key={idx}
                     className={`border border-gray-300 p-2 align-bottom whitespace-pre-wrap leading-snug w-20 ${col.isLastInGroup ? 'border-r-2 border-r-gray-400' : ''}`}
                   >
                     {col.label}
@@ -312,22 +281,22 @@ const UnPouredMouldDetails = () => {
                   <td className="border border-gray-300 font-black text-gray-700 bg-gray-50  left-0 z-10 group-hover:bg-orange-50/80">
                     {shift}
                   </td>
-                  
+
                   {columns.map(col => (
                     <td key={col.key} className={`border border-gray-300 p-0 relative ${col.isLastInGroup ? 'border-r-2 border-r-gray-400' : ''}`}>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         min="0"
-                        value={shiftsData[shift][col.key]} 
+                        value={shiftsData[shift][col.key]}
                         onChange={(e) => handleInputChange(shift, col.key, e.target.value)}
                         onFocus={(e) => e.target.select()}
                         className="absolute inset-0 w-full h-full text-center text-sm font-bold text-gray-800 bg-transparent outline-none focus:bg-orange-100 focus:ring-inset focus:ring-2 focus:ring-orange-500 [&::-webkit-inner-spin-button]:appearance-none transition-colors"
                       />
                     </td>
                   ))}
-                  
+
                   <td className="border border-gray-300 font-bold text-gray-800 bg-gray-100  right-0 z-10 border-l-2 border-l-orange-300">
-                     {getRowTotal(shift) || ''}
+                    {getRowTotal(shift) || ''}
                   </td>
                 </tr>
               ))}
@@ -335,15 +304,15 @@ const UnPouredMouldDetails = () => {
               {/* Final TOTAL Row */}
               <tr className="bg-gray-200 h-14 font-black">
                 <td className="border border-gray-400 text-gray-800  left-0 z-10 bg-gray-200">TOTAL</td>
-                
+
                 {columns.map(col => (
-                   <td key={col.key} className={`border border-gray-400 text-gray-800 ${col.isLastInGroup ? 'border-r-2 border-r-gray-500' : ''}`}>
-                      {getColTotal(col.key) || ''}
-                   </td>
+                  <td key={col.key} className={`border border-gray-400 text-gray-800 ${col.isLastInGroup ? 'border-r-2 border-r-gray-500' : ''}`}>
+                    {getColTotal(col.key) || ''}
+                  </td>
                 ))}
-                
+
                 <td className="border border-gray-400 text-xl text-orange-800 bg-orange-200  right-0 z-10 border-l-2 border-l-orange-400 shadow-inner">
-                   {getGrandTotal() || '0'}
+                  {getGrandTotal() || '0'}
                 </td>
               </tr>
             </tbody>
@@ -352,29 +321,30 @@ const UnPouredMouldDetails = () => {
 
         {/* --- Footer Action Bar --- */}
         <div id="checklist-footer" className="bg-slate-100 p-8 border-t border-gray-200  bottom-0 z-20 flex justify-end gap-6 rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-           
-           {/* ✅ Added PDF Download Button */}
-           <button 
-             onClick={generatePDF} 
-             className="bg-white border-2 border-gray-900 text-gray-900 hover:bg-gray-200 font-bold py-3 px-6 rounded-lg shadow-md uppercase flex items-center gap-2 mt-auto transition-colors"
-           >
-             <FileDown size={20} /> PDF
-           </button>
 
-           <button 
-             onClick={handleSave}
-             disabled={loading}
-             className="bg-gray-900 hover:bg-orange-600 text-white font-bold py-3 px-12 rounded-lg shadow-lg uppercase mt-auto transition-colors flex items-center gap-3"
-           >
-             {loading ? <Loader className="animate-spin w-5 h-5" /> : <Save className="w-5 h-5" />}
-             {loading ? 'Saving...' : 'Save All Shifts'}
-           </button>
+          {/* ✅ Added PDF Download Button */}
+          <button
+            onClick={generatePDF}
+            className="bg-white border-2 border-gray-900 text-gray-900 hover:bg-gray-200 font-bold py-3 px-6 rounded-lg shadow-md uppercase flex items-center gap-2 mt-auto transition-colors"
+          >
+            <FileDown size={20} /> PDF
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="bg-gray-900 hover:bg-orange-600 text-white font-bold py-3 px-12 rounded-lg shadow-lg uppercase mt-auto transition-colors flex items-center gap-3"
+          >
+            {loading ? <Loader className="animate-spin w-5 h-5" /> : <Save className="w-5 h-5" />}
+            {loading ? 'Saving...' : 'Save All Shifts'}
+          </button>
         </div>
 
       </div>
 
       {/* Tailwind friendly scrollbar styling embedded */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar::-webkit-scrollbar { height: 12px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }

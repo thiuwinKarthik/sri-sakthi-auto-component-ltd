@@ -3,21 +3,54 @@ const { sql } = require('../db');
 exports.getDetails = async (req, res) => {
   try {
     const { machine } = req.query;
+    // We are pulling data for today. If no data exists for today, we still return the Master list.
+    const today = new Date().toISOString().split('T')[0];
 
-    const mainRes = await sql.query`
-      SELECT * FROM ErrorProofVerifications 
-      WHERE DisaMachine = ${machine}
+    // 1. Fetch Dynamic Master List
+    const masterRes = await sql.query`
+      SELECT * FROM ErrorProof_Master 
+      WHERE IsDeleted = 0 
+      ORDER BY SlNo ASC
     `;
 
+    // 2. Fetch Transactions for today matching this machine
+    const transRes = await sql.query`
+      SELECT * FROM ErrorProof_Trans 
+      WHERE DisaMachine = ${machine} AND RecordDate = ${today}
+    `;
+
+    // 3. Fetch Reaction Plans for today
+    // We need to match ReactionPlans to the TransId
     const reactionRes = await sql.query`
       SELECT rp.* FROM ReactionPlans rp
-      INNER JOIN ErrorProofVerifications epv ON rp.VerificationId = epv.Id
-      WHERE epv.DisaMachine = ${machine}
+      INNER JOIN ErrorProof_Trans epv ON rp.VerificationId = epv.TransId
+      WHERE epv.DisaMachine = ${machine} AND epv.RecordDate = ${today}
       ORDER BY rp.SNo ASC
     `;
 
+    // Map the transaction data to the master data
+    const verifications = masterRes.recordset.map(masterRow => {
+      // Look for matching transaction
+      const transRow = transRes.recordset.find(t => t.MasterId === masterRow.MasterId);
+
+      return {
+        Id: transRow ? transRow.TransId : `temp-${masterRow.MasterId}`,
+        MasterId: masterRow.MasterId,
+        Line: masterRow.Line,
+        ErrorProofName: masterRow.ErrorProofName,
+        NatureOfErrorProof: masterRow.NatureOfErrorProof,
+        Frequency: masterRow.Frequency,
+        SlNo: masterRow.SlNo,
+        Date1_Shift1_Res: transRow ? transRow.Shift1_Res : null,
+        Date1_Shift2_Res: transRow ? transRow.Shift2_Res : null,
+        Date1_Shift3_Res: transRow ? transRow.Shift3_Res : null,
+        ReviewedByHOF: transRow ? transRow.ReviewedByHOF : '',
+        ApprovedBy: transRow ? transRow.ApprovedBy : ''
+      };
+    });
+
     res.json({
-      verifications: mainRes.recordset,
+      verifications: verifications,
       reactionPlans: reactionRes.recordset
     });
 
@@ -38,30 +71,30 @@ exports.saveDetails = async (req, res) => {
     try {
       // 1. Update existing records or Insert brand new ones
       for (const row of verifications) {
-        
-        // Safely check if this is a temporary ID created by the frontend for a new machine
+
+        // Safely check if this is a temporary ID (no transaction row for today yet)
         const isNewRecord = String(row.Id).startsWith('temp');
         const queryReq = new sql.Request(transaction);
 
         if (isNewRecord) {
-          // INSERT NEW ROW AND GET THE NEWLY GENERATED SQL ID
+          // INSERT NEW ROW IN TRANS TABLE
           const result = await queryReq.query`
-            INSERT INTO ErrorProofVerifications (
-              RecordDate, DisaMachine, Line, ErrorProofName, NatureOfErrorProof, Frequency,
-              Date1_Shift1_Res, Date1_Shift2_Res, Date1_Shift3_Res,
-              ReviewedByHOF, ApprovedBy
+            INSERT INTO ErrorProof_Trans (
+              RecordDate, DisaMachine, MasterId,
+              Shift1_Res, Shift2_Res, Shift3_Res,
+              ReviewedByHOF, ApprovedBy, LastUpdated
             ) 
-            OUTPUT INSERTED.Id
+            OUTPUT INSERTED.TransId
             VALUES (
-              ${today}, ${machine}, ${row.Line}, ${row.ErrorProofName}, ${row.NatureOfErrorProof}, ${row.Frequency},
+              ${today}, ${machine}, ${row.MasterId},
               ${row.Date1_Shift1_Res || null}, ${row.Date1_Shift2_Res || null}, ${row.Date1_Shift3_Res || null},
-              ${headerDetails.reviewedBy}, ${headerDetails.approvedBy}
+              ${headerDetails.reviewedBy}, ${headerDetails.approvedBy}, GETDATE()
             )
           `;
 
-          const newDbId = result.recordset[0].Id;
+          const newDbId = result.recordset[0].TransId;
 
-          // CRITICAL FIX: Replace 'temp-x' with the real SQL Integer ID in the Reaction Plans array
+          // Replace 'temp-x' with the real SQL Integer ID in the Reaction Plans array
           if (reactionPlans && reactionPlans.length > 0) {
             reactionPlans.forEach(rp => {
               if (String(rp.VerificationId) === String(row.Id)) {
@@ -71,23 +104,22 @@ exports.saveDetails = async (req, res) => {
           }
 
         } else {
-          // NORMAL UPDATE FOR EXISTING DB ROWS
+          // UPDATE EXISTING TRANS ROW
           await queryReq.query`
-            UPDATE ErrorProofVerifications
+            UPDATE ErrorProof_Trans
             SET 
-              RecordDate = ${today},
-              Date1_Shift1_Res = ${row.Date1_Shift1_Res || null},
-              Date1_Shift2_Res = ${row.Date1_Shift2_Res || null},
-              Date1_Shift3_Res = ${row.Date1_Shift3_Res || null},
+              Shift1_Res = ${row.Date1_Shift1_Res || null},
+              Shift2_Res = ${row.Date1_Shift2_Res || null},
+              Shift3_Res = ${row.Date1_Shift3_Res || null},
               ReviewedByHOF = ${headerDetails.reviewedBy},
               ApprovedBy = ${headerDetails.approvedBy},
               LastUpdated = GETDATE()
-            WHERE Id = ${row.Id}
+            WHERE TransId = ${row.Id}
           `;
         }
       }
 
-      // 2. Clear out existing reaction plans safely (Only for existing SQL integer IDs)
+      // 2. Clear out existing reaction plans safely
       const validIdsForDeletion = verifications
         .filter(v => !String(v.Id).startsWith('temp'))
         .map(v => v.Id);
@@ -119,7 +151,7 @@ exports.saveDetails = async (req, res) => {
 
     } catch (err) {
       await transaction.rollback();
-      throw err; 
+      throw err;
     }
   } catch (err) {
     console.error("Save Error:", err);

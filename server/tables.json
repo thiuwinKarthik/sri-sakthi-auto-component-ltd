@@ -1,0 +1,16 @@
+[
+  "UnPouredMouldDetails",
+  "Operators",
+  "Supervisors",
+  "DmmSettingParameters",
+  "ErrorProofVerifications",
+  "ReactionPlans",
+  "sysdiagrams",
+  "Users",
+  "MachineChecklist_Master",
+  "MachineChecklist_Trans",
+  "DisaNonConformanceReport",
+  "BottomLevelAudit_Master",
+  "BottomLevelAudit_Trans",
+  "BottomLevelAudit_NCR"
+]

@@ -1,20 +1,26 @@
 import { Routes, Route, useNavigate, Link } from "react-router-dom";
 import UnPouredMouldDetails from "./UnPouredMouldDetails";
-import DisaMachineCheckList from "./DisaMachineCheckList"; 
+import DisaMachineCheckList from "./DisaMachineCheckList";
 import BottomLevelAudit from "./BottomLevelAudit";
-import DmmSettingParameters from "./DmmSettingParameters"; 
+import DmmSettingParameters from "./DmmSettingParameters";
 import ErrorProofVerification from "./ErrorProofVerification"; // 1. Import the new component
+import AdminPanel from "./AdminPanel";
+import AdminDashboard from "./AdminDashboard";
+import ConfigFormStructure from "./ConfigFormStructure";
+import ConfigErrorProof from "./ConfigErrorProof";
+import ConfigUnpouredMould from "./ConfigUnpouredMould";
+import ConfigDmmSetting from "./ConfigDmmSetting";
 
 /* ---------- Professional Page Wrapper ---------- */
 const PageWrapper = ({ title, children }) => (
   <div className="h-screen w-full bg-[#2d2d2d] text-white flex flex-col overflow-hidden">
     {/* Accent Top Bar */}
     <div className="h-1.5 bg-[#ff9100] flex-shrink-0" />
-    
+
     {/* Sub-Header / Navigation */}
     <div className="bg-[#333333] border-b border-white/10 px-8 py-4 flex items-center justify-between shadow-md">
-      <Link 
-        to="/" 
+      <Link
+        to="/"
         className="flex items-center gap-2 text-[#ff9100] font-bold uppercase tracking-wider text-sm hover:text-white transition-colors"
       >
         ← Back to Dashboard
@@ -30,7 +36,7 @@ const PageWrapper = ({ title, children }) => (
         {children}
       </div>
     </div>
-    
+
     <div className="h-1.5 bg-[#ff9100] flex-shrink-0" />
   </div>
 );
@@ -40,7 +46,7 @@ const DashboardHome = () => {
   const navigate = useNavigate();
 
   const buttons = [
-    { name: "Product", path: "/product" },
+
     { name: "Performance", path: "/performance" },
     { name: "DISA Matic Product Report", path: "/disamatic-report" },
     { name: "Unpoured Mould Details", path: "/unpoured-mould" },
@@ -49,6 +55,7 @@ const DashboardHome = () => {
     { name: "Layered Process Audit", path: "/lpa" },
     { name: "Moulding Quantity Report", path: "/moulding-qty" },
     { name: "Error Proof Verification", path: "/error-proof" },
+    { name: "Admin Panel", path: "/admin" },
   ];
 
   return (
@@ -159,10 +166,10 @@ export default function Dashboard() {
   return (
     <Routes>
       <Route path="/" element={<DashboardHome />} />
-      <Route path="/product" element={<SimplePage title="Product Management" />} />
+
       <Route path="/performance" element={<SimplePage title="Performance Metrics" />} />
       <Route path="/disamatic-report" element={<SimplePage title="Disamatic Report" />} />
-      
+
       <Route
         path="/unpoured-mould"
         element={
@@ -171,40 +178,74 @@ export default function Dashboard() {
           </PageWrapper>
         }
       />
-      
+
       <Route path="/disa-setting" element={
         <PageWrapper title="DMM Setting Parameters">
-           <DmmSettingParameters />
+          <DmmSettingParameters />
         </PageWrapper>
       } />
 
-      <Route 
-        path="/disa-operator" 
+      <Route
+        path="/disa-operator"
         element={
           <PageWrapper title="DISA Operator Checklist">
             <DisaMachineCheckList />
           </PageWrapper>
-        } 
+        }
       />
 
       <Route path="/lpa" element={
         <PageWrapper title="Layered Process Audit">
-           <BottomLevelAudit />
+          <BottomLevelAudit />
         </PageWrapper>
       } />
-      
+
       <Route path="/moulding-qty" element={<SimplePage title="Moulding Quantity" />} />
-      
+
       {/* 2. Updated Route for Error Proof Verification */}
-      <Route 
-        path="/error-proof" 
+      <Route
+        path="/error-proof"
         element={
           <PageWrapper title="Error Proof Verification">
             <ErrorProofVerification />
           </PageWrapper>
-        } 
+        }
       />
-      
+
+      {/* Admin Dashboard Hub Route */}
+      <Route
+        path="/admin"
+        element={<AdminDashboard />}
+      />
+
+      {/* Admin User Management Route */}
+      <Route
+        path="/admin/users"
+        element={
+          <PageWrapper title="User Management">
+            <AdminPanel />
+          </PageWrapper>
+        }
+      />
+
+      {/* Admin Config Dynamic Setup */}
+      <Route
+        path="/admin/config/error-proof"
+        element={<ConfigErrorProof />}
+      />
+      <Route
+        path="/admin/config/unpoured-mould-details"
+        element={<ConfigUnpouredMould />}
+      />
+      <Route
+        path="/admin/config/dmm-setting-parameters"
+        element={<ConfigDmmSetting />}
+      />
+      <Route
+        path="/admin/config/:formId"
+        element={<ConfigFormStructure />}
+      />
+
     </Routes>
   );
 }

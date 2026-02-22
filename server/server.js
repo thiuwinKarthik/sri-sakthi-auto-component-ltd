@@ -11,6 +11,9 @@ const disaChecklistRoutes = require('./routes/disaChecklistRoutes');
 const bottomLevelRoutes = require('./routes/bottomLevelRoutes');
 const dmmRoutes = require('./routes/dmmRoutes');
 const errorProofRoutes = require('./routes/errorProofRoutes');
+const userRoutes = require('./routes/userRoutes');
+const reportRoutes = require('./routes/reportRoutes'); // <-- Added for PDF exports
+const configRoutes = require('./routes/configRoutes'); // <-- Added for Form Customizations
 
 const app = express();
 
@@ -27,6 +30,9 @@ app.use('/api/disa-checklist', disaChecklistRoutes);
 app.use('/api/bottom-level-audit', bottomLevelRoutes);
 app.use('/api/dmm-settings', dmmRoutes);
 app.use('/api/error-proof', errorProofRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/reports', reportRoutes); // <-- Added Endpoint
+app.use('/api/config', configRoutes); // <-- Added Admin Config Router
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
