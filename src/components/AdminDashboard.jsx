@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FileDown, Calendar, Users, X, Loader, AlertTriangle, CheckCircle, Settings, FileText } from 'lucide-react';
+import { FileDown, Calendar, Users, X, Loader, AlertTriangle, CheckCircle, Settings, FileText, LogOut } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { generateUnPouredMouldPDF, generateDmmSettingPDF, generateChecklistPDF, generateErrorProofPDF } from '../utils/pdfGenerators';
+import { removeToken, getUser } from '../utils/auth';
 
 // Toast Notification component for consistency
 const NotificationToast = ({ data, onClose }) => {
@@ -44,6 +45,13 @@ const NotificationToast = ({ data, onClose }) => {
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
+
+    const user = getUser();
+
+    const handleLogout = () => {
+        removeToken();
+        navigate('/login');
+    };
 
     // Modal States
     const [actionModal, setActionModal] = useState({ show: false, selectedForm: null });
@@ -157,10 +165,21 @@ const AdminDashboard = () => {
             <div className="h-1.5 bg-[#ff9100] flex-shrink-0 shadow-[0_0_15px_rgba(255,145,0,0.5)]" />
 
             {/* Navigation Bar matching original dashboard (Moved to Top Left) */}
-            <div className="w-full flex justify-between px-10 pt-6 absolute top-0 left-0">
-                <Link to="/" className="flex items-center gap-2 text-[#ff9100] font-bold uppercase tracking-wider text-sm hover:text-white transition-colors bg-white/5 px-4 py-2 rounded-lg border border-white/10 hover:border-[#ff9100]/50 shadow-lg backdrop-blur-sm">
-                    ← Back to Main System
+            <div className="w-full flex justify-between items-center px-10 pt-6 absolute top-0 left-0 z-10">
+                <Link to="/admin" className="flex items-center gap-2 text-[#ff9100] font-bold uppercase tracking-wider text-sm hover:text-white transition-colors bg-white/5 px-4 py-2 rounded-lg border border-white/10 hover:border-[#ff9100]/50 shadow-lg backdrop-blur-sm">
+                    ← Back to Dashboard
                 </Link>
+                <div className="flex items-center gap-4">
+                    <span className="text-white/30 text-xs font-mono uppercase tracking-wider">
+                        {user ? `${user.username} · ${user.role}` : ''}
+                    </span>
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 text-white/50 hover:text-[#ff9100] text-xs font-bold uppercase tracking-widest transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 hover:border-[#ff9100]/40 shadow-lg backdrop-blur-sm"
+                    >
+                        <LogOut className="w-4 h-4" /> Logout
+                    </button>
+                </div>
             </div>
 
             {/* Corporate Header */}

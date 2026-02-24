@@ -1,4 +1,34 @@
 const { sql } = require('../db');
+const bcrypt = require('bcryptjs');
+
+// ── Helper: insert into role-specific table ─────────────────────────────────
+const insertIntoRoleTable = async (role, userId, username) => {
+    const r = (role || '').toUpperCase();
+    if (r === 'OPERATOR') {
+        await sql.query`INSERT INTO Operators (OperatorName) VALUES (${username})`;
+    } else if (r === 'SUPERVISOR') {
+        await sql.query`INSERT INTO Supervisors (supervisorName) VALUES (${username})`;
+    } else if (r === 'HOD') {
+        await sql.query`INSERT INTO Hod (hodName) VALUES (${username})`;
+    } else if (r === 'HOF') {
+        await sql.query`INSERT INTO Hof (hofName) VALUES (${username})`;
+    }
+    // ADMIN → no separate table
+};
+
+// ── Helper: delete from role-specific table by name ───────────────────
+const deleteFromRoleTable = async (role, userId, username) => {
+    const r = (role || '').toUpperCase();
+    if (r === 'OPERATOR') {
+        await sql.query`DELETE FROM Operators WHERE OperatorName = ${username}`;
+    } else if (r === 'SUPERVISOR') {
+        await sql.query`DELETE FROM Supervisors WHERE supervisorName = ${username}`;
+    } else if (r === 'HOD') {
+        await sql.query`DELETE FROM Hod WHERE hodName = ${username}`;
+    } else if (r === 'HOF') {
+        await sql.query`DELETE FROM Hof WHERE hofName = ${username}`;
+    }
+};
 
 const userController = {
     // --- 1. Get All Users ---
@@ -32,13 +62,25 @@ const userController = {
                 return res.status(400).json({ error: 'Username already exists' });
             }
 
+            // Hash password before storing
+            const hashedPassword = await bcrypt.hash(password, 10);
+
             const result = await sql.query`
         INSERT INTO Users (Username, Password, Role) 
         OUTPUT INSERTED.Id, INSERTED.Username, INSERTED.Role, INSERTED.CreatedAt
-        VALUES (${username}, ${password}, ${role})
+        VALUES (${username}, ${hashedPassword}, ${role})
       `;
 
-            res.status(201).json(result.recordset[0]);
+            const newUser = result.recordset[0];
+
+            // Insert into role-specific table
+            try {
+                await insertIntoRoleTable(role, newUser.Id, newUser.Username);
+            } catch (roleErr) {
+                console.warn('Role table insert failed:', roleErr.message);
+            }
+
+            res.status(201).json(newUser);
         } catch (err) {
             console.error('Error creating user:', err);
             res.status(500).send('Server Error');
@@ -77,6 +119,20 @@ const userController = {
     deleteUser: async (req, res) => {
         try {
             const { id } = req.params;
+
+            // Look up role + username before deleting so we can clean the role table
+            const userRes = await sql.query`SELECT Role, Username FROM Users WHERE Id = ${id}`;
+            const userRole = userRes.recordset[0]?.Role;
+            const userUsername = userRes.recordset[0]?.Username;
+
+            // Delete from role-specific table first
+            if (userRole && userUsername) {
+                try {
+                    await deleteFromRoleTable(userRole, id, userUsername);
+                } catch (roleErr) {
+                    console.warn('Role table delete failed:', roleErr.message);
+                }
+            }
 
             const result = await sql.query`
         DELETE FROM Users WHERE Id = ${id}

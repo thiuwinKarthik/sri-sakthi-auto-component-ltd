@@ -52,7 +52,7 @@ const NotificationToast = ({ data, onClose }) => {
 
 const AdminPanel = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [formData, setFormData] = useState({ username: '', password: '', role: 'OPERATOR' });
+    const [formData, setFormData] = useState({ username: '', password: '', role: 'operator' });
     const [loading, setLoading] = useState(false);
     const [notification, setNotification] = useState({ show: false, type: '', message: '' });
     const [deletePrompt, setDeletePrompt] = useState({ show: false, userId: null });
@@ -75,7 +75,7 @@ const AdminPanel = () => {
 
     const handleOpenCreateModal = () => {
         setEditUser(null);
-        setFormData({ username: '', password: '', role: 'OPERATOR' });
+        setFormData({ username: '', password: '', role: 'operator' });
         setShowCreateModal(true);
     };
 
@@ -114,7 +114,7 @@ const AdminPanel = () => {
                 setNotification({ show: true, type: 'success', message: 'User created successfully!' });
             }
             setShowCreateModal(false);
-            setFormData({ username: '', password: '', role: 'OPERATOR' });
+            setFormData({ username: '', password: '', role: 'operator' });
         } catch (error) {
             setNotification({
                 show: true,
@@ -252,10 +252,11 @@ const AdminPanel = () => {
                                         onChange={e => setFormData({ ...formData, role: e.target.value })}
                                         className="w-full bg-[#222] border border-white/10 rounded-xl p-3.5 text-white focus:outline-none focus:border-[#ff9100] focus:ring-1 focus:ring-[#ff9100] transition-all appearance-none cursor-pointer font-bold"
                                     >
-                                        <option value="HOD">HOD (Head of Department)</option>
-                                        <option value="HOF">HOF (Head of Foundry)</option>
-                                        <option value="SUPERVISOR">SUPERVISOR</option>
-                                        <option value="OPERATOR">OPERATOR</option>
+                                        <option value="admin">ADMIN</option>
+                                        <option value="hod">HOD (Head of Department)</option>
+                                        <option value="hof">HOF (Head of Foundry)</option>
+                                        <option value="supervisor">SUPERVISOR</option>
+                                        <option value="operator">OPERATOR</option>
                                     </select>
                                     <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-white/50">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>

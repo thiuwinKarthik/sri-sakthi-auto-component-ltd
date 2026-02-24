@@ -14,6 +14,11 @@ const errorProofRoutes = require('./routes/errorProofRoutes');
 const userRoutes = require('./routes/userRoutes');
 const reportRoutes = require('./routes/reportRoutes'); // <-- Added for PDF exports
 const configRoutes = require('./routes/configRoutes'); // <-- Added for Form Customizations
+const authRoutes = require('./routes/authRoutes'); // <-- JWT Auth
+const productRoutes = require('./routes/productRoutes'); // <-- Disamatic Product Report
+const disaRoutes = require('./routes/disaRoutes');        // <-- DISA Setting Adjustment
+const fourMRoutes = require('./routes/fourMRoutes');       // <-- 4M Change Monitoring
+const errorProofRoutes2 = require('./routes/errorProofRoutes2'); // <-- Error Proof Verification 2
 
 const app = express();
 
@@ -33,6 +38,11 @@ app.use('/api/error-proof', errorProofRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes); // <-- Added Endpoint
 app.use('/api/config', configRoutes); // <-- Added Admin Config Router
+app.use('/api/auth', authRoutes);    // <-- JWT Auth Login
+app.use('/api', productRoutes);       // <-- Disamatic Product Report
+app.use('/api/disa', disaRoutes);     // <-- DISA Setting Adjustment
+app.use('/api/4m-change', fourMRoutes); // <-- 4M Change Monitoring
+app.use('/api/error-proof2', errorProofRoutes2); // <-- Error Proof Verification 2
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

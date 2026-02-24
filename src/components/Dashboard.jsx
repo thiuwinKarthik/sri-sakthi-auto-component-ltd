@@ -1,4 +1,7 @@
-import { Routes, Route, useNavigate, Link } from "react-router-dom";
+import { Routes, Route, useNavigate, Link, Navigate } from "react-router-dom";
+import { removeToken, getUser } from '../utils/auth';
+import { isAdmin } from '../utils/auth';
+import { LogOut } from 'lucide-react';
 import UnPouredMouldDetails from "./UnPouredMouldDetails";
 import DisaMachineCheckList from "./DisaMachineCheckList";
 import BottomLevelAudit from "./BottomLevelAudit";
@@ -10,52 +13,67 @@ import ConfigFormStructure from "./ConfigFormStructure";
 import ConfigErrorProof from "./ConfigErrorProof";
 import ConfigUnpouredMould from "./ConfigUnpouredMould";
 import ConfigDmmSetting from "./ConfigDmmSetting";
+import DisamaticProductReport from "./DisamaticProductReport";
+import DISASettingAdjustment from "./DISASettingAdjustment";
+import FourMChangeMonitoring from "./FourMChangeMonitoring";
+import ErrorProofVerification2 from "./ErrorProofVerification2";
 
 /* ---------- Professional Page Wrapper ---------- */
-const PageWrapper = ({ title, children }) => (
-  <div className="h-screen w-full bg-[#2d2d2d] text-white flex flex-col overflow-hidden">
-    {/* Accent Top Bar */}
-    <div className="h-1.5 bg-[#ff9100] flex-shrink-0" />
+const PageWrapper = ({ title, children }) => {
+  const backPath = isAdmin() ? "/admin" : "/";
+  return (
+    <div className="h-screen w-full bg-[#2d2d2d] text-white flex flex-col overflow-hidden">
+      {/* Accent Top Bar */}
+      <div className="h-1.5 bg-[#ff9100] flex-shrink-0" />
 
-    {/* Sub-Header / Navigation */}
-    <div className="bg-[#333333] border-b border-white/10 px-8 py-4 flex items-center justify-between shadow-md">
-      <Link
-        to="/"
-        className="flex items-center gap-2 text-[#ff9100] font-bold uppercase tracking-wider text-sm hover:text-white transition-colors"
-      >
-        ← Back to Dashboard
-      </Link>
-      <div className="text-white/40 text-xs font-mono uppercase">Sakthi Auto Component Ltd</div>
-    </div>
-
-    <div className="flex-1 p-8 overflow-y-auto">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-extrabold text-white mb-8 border-l-4 border-[#ff9100] pl-4 uppercase tracking-tight">
-          {title}
-        </h1>
-        {children}
+      {/* Sub-Header / Navigation */}
+      <div className="bg-[#333333] border-b border-white/10 px-8 py-4 flex items-center justify-between shadow-md">
+        <Link
+          to={backPath}
+          className="flex items-center gap-2 text-[#ff9100] font-bold uppercase tracking-wider text-sm hover:text-white transition-colors"
+        >
+          ← Back to Dashboard
+        </Link>
+        <div className="text-white/40 text-xs font-mono uppercase">Sakthi Auto Component Ltd</div>
       </div>
-    </div>
 
-    <div className="h-1.5 bg-[#ff9100] flex-shrink-0" />
-  </div>
-);
+      <div className="flex-1 p-8 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-3xl font-extrabold text-white mb-8 border-l-4 border-[#ff9100] pl-4 uppercase tracking-tight">
+            {title}
+          </h1>
+          {children}
+        </div>
+      </div>
+
+      <div className="h-1.5 bg-[#ff9100] flex-shrink-0" />
+    </div>
+  );
+};
 
 /* ---------- Refined Dashboard Home ---------- */
 const DashboardHome = () => {
   const navigate = useNavigate();
 
-  const buttons = [
+  const user = getUser();
 
+  const handleLogout = () => {
+    removeToken();
+    navigate('/login');
+  };
+
+  const buttons = [
     { name: "Performance", path: "/performance" },
     { name: "DISA Matic Product Report", path: "/disamatic-report" },
     { name: "Unpoured Mould Details", path: "/unpoured-mould" },
-    { name: "DISA Setting Adjustment", path: "/disa-setting" },
+    { name: "DISA Adjustment Settings", path: "/disa-setting-adjustment" },
+    { name: "DISA Settings Parameter", path: "/disa-setting-parameter" },
     { name: "DISA Operator Checklist", path: "/disa-operator" },
     { name: "Layered Process Audit", path: "/lpa" },
     { name: "Moulding Quantity Report", path: "/moulding-qty" },
     { name: "Error Proof Verification", path: "/error-proof" },
-    { name: "Admin Panel", path: "/admin" },
+    { name: "4M Change Monitoring", path: "/4m-change" },
+    { name: "Error Proof Verification 2", path: "/error-proof2" },
   ];
 
   return (
@@ -63,8 +81,21 @@ const DashboardHome = () => {
       {/* Top Border */}
       <div className="h-1.5 bg-[#ff9100] flex-shrink-0 shadow-[0_0_15px_rgba(255,145,0,0.5)]" />
 
+      {/* Top bar with user info + logout */}
+      <div className="w-full flex justify-between items-center px-8 pt-4 flex-shrink-0">
+        <div className="text-white/30 text-xs font-mono uppercase tracking-wider">
+          {user ? `${user.username} · ${user.role}` : ''}
+        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 text-white/50 hover:text-[#ff9100] text-xs font-bold uppercase tracking-widest transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 hover:border-[#ff9100]/40"
+        >
+          <LogOut className="w-4 h-4" /> Logout
+        </button>
+      </div>
+
       {/* Corporate Header */}
-      <div className="py-10 flex-shrink-0 flex flex-col items-center">
+      <div className="py-6 flex-shrink-0 flex flex-col items-center">
         <h1 className="
           text-[2.5rem] 
           md:text-[3.5rem] 
@@ -161,6 +192,12 @@ const SimplePage = ({ title }) => (
   </PageWrapper>
 );
 
+/* ---------- Admin Guard ---------- */
+const AdminGuard = ({ children }) => {
+  if (!isAdmin()) return <Navigate to="/" replace />;
+  return children;
+};
+
 /* ---------- Routes ---------- */
 export default function Dashboard() {
   return (
@@ -168,7 +205,15 @@ export default function Dashboard() {
       <Route path="/" element={<DashboardHome />} />
 
       <Route path="/performance" element={<SimplePage title="Performance Metrics" />} />
-      <Route path="/disamatic-report" element={<SimplePage title="Disamatic Report" />} />
+
+      <Route
+        path="/disamatic-report"
+        element={
+          <PageWrapper title="DISA Matic Production Report">
+            <DisamaticProductReport />
+          </PageWrapper>
+        }
+      />
 
       <Route
         path="/unpoured-mould"
@@ -179,8 +224,14 @@ export default function Dashboard() {
         }
       />
 
-      <Route path="/disa-setting" element={
-        <PageWrapper title="DMM Setting Parameters">
+      <Route path="/disa-setting-adjustment" element={
+        <PageWrapper title="DISA Setting Adjustment Record">
+          <DISASettingAdjustment />
+        </PageWrapper>
+      } />
+
+      <Route path="/disa-setting-parameter" element={
+        <PageWrapper title="DISA Parameter Setting">
           <DmmSettingParameters />
         </PageWrapper>
       } />
@@ -208,6 +259,24 @@ export default function Dashboard() {
         element={
           <PageWrapper title="Error Proof Verification">
             <ErrorProofVerification />
+          </PageWrapper>
+        }
+      />
+
+      <Route
+        path="/4m-change"
+        element={
+          <PageWrapper title="4M Change Monitoring Check Sheet">
+            <FourMChangeMonitoring />
+          </PageWrapper>
+        }
+      />
+
+      <Route
+        path="/error-proof2"
+        element={
+          <PageWrapper title="Error Proof Verification Check List">
+            <ErrorProofVerification2 />
           </PageWrapper>
         }
       />
