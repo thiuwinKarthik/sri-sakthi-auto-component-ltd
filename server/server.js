@@ -19,6 +19,7 @@ const productRoutes = require('./routes/productRoutes'); // <-- Disamatic Produc
 const disaRoutes = require('./routes/disaRoutes');        // <-- DISA Setting Adjustment
 const fourMRoutes = require('./routes/fourMRoutes');       // <-- 4M Change Monitoring
 const errorProofRoutes2 = require('./routes/errorProofRoutes2'); // <-- Error Proof Verification 2
+const unpouredRoutes = require('./routes/unpouredRoutes');
 
 const app = express();
 
@@ -42,7 +43,8 @@ app.use('/api/auth', authRoutes);    // <-- JWT Auth Login
 app.use('/api', productRoutes);       // <-- Disamatic Product Report
 app.use('/api/disa', disaRoutes);     // <-- DISA Setting Adjustment
 app.use('/api/4m-change', fourMRoutes); // <-- 4M Change Monitoring
-app.use('/api/error-proof2', errorProofRoutes2); // <-- Error Proof Verification 2
+app.use('/api/error-proof2', errorProofRoutes2);
+app.use('/api/', unpouredRoutes); // <-- Error Proof Verification 2
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
