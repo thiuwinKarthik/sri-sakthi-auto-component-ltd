@@ -145,7 +145,7 @@ const DmmSettingParameters = () => {
       const formattedDate = new Date(headerData.date).toLocaleDateString('en-GB');
       doc.text(`DATE: ${formattedDate}`, 280, 28, { align: 'right' });
 
-      // 2. Main Signatures/Operators Table (Generated strictly at the top)
+      // 2. Main Signatures/Operators Table
       autoTable(doc, {
         startY: 32,
         margin: { left: 10, right: 10 },
@@ -160,7 +160,7 @@ const DmmSettingParameters = () => {
         headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' }
       });
 
-      let currentY = doc.lastAutoTable.finalY + 8; // Spacer below the signature table
+      let currentY = doc.lastAutoTable.finalY + 8;
 
       // 3. Shift Tables Generation
       [1, 2, 3].forEach((shift, index) => {
@@ -168,23 +168,20 @@ const DmmSettingParameters = () => {
         const shiftLabel = shift === 1 ? 'I' : shift === 2 ? 'II' : 'III';
 
         const tableHeader = [
-          // Row 1: Just the gray shift label (operator names moved to top table)
           [{ content: `SHIFT ${shiftLabel}`, colSpan: columns.length + 1, styles: { halign: 'center', fontStyle: 'bold', fillColor: [200, 200, 200], textColor: [0, 0, 0] } }],
-          // Row 2: Standard column headers
-          [{ content: 'S.No', styles: { cellWidth: 8 } }, ...columns.map(col => ({ content: col.label, styles: { cellWidth: 'wrap' } }))]
+          // Removed `cellWidth: 'wrap'` here so headers can break to new lines and save width
+          [{ content: 'S.No', styles: { cellWidth: 6 } }, ...columns.map(col => ({ content: col.label }))]
         ];
 
         let tableBody = [];
 
         if (isIdle) {
-          // Line Idle Formatting
           tableBody.push([{
             content: 'L I N E   I D L E',
             colSpan: columns.length + 1,
             styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 14, textColor: [100, 100, 100], fillColor: [245, 245, 245], minCellHeight: 15 }
           }]);
         } else {
-          // Standard Rows Formatting
           tableBody = shiftsData[shift].map((row, idx) => {
             const pdfRow = [(idx + 1).toString()];
             columns.forEach(col => {
@@ -202,32 +199,30 @@ const DmmSettingParameters = () => {
           body: tableBody,
           theme: 'grid',
           styles: {
-            fontSize: 5.5,
-            cellPadding: 0.8,
+            fontSize: 4.5, // Scaled down from 5.5
+            cellPadding: 0.5, // Scaled down from 0.8
             lineColor: [0, 0, 0],
             lineWidth: 0.1,
             textColor: [0, 0, 0],
             halign: 'center',
-            valign: 'middle'
+            valign: 'middle',
+            overflow: 'linebreak' // Forces long text to wrap instead of stretching the table
           },
           headStyles: {
             fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
-            fontSize: 5
+            fontSize: 4.5 // Scaled down from 5
           },
+          // Removed hardcoded indices (1, 2, 19) that were forcing strict widths
           columnStyles: {
-            0: { cellWidth: 8 },
-            1: { cellWidth: 25 },
-            2: { cellWidth: 28 },
-            19: { cellWidth: 'auto' }
+            0: { cellWidth: 6 } 
           }
         });
 
         currentY = doc.lastAutoTable.finalY + 5;
 
         if (currentY > 175 && index < 2) {
-          // Add footer QF string before creating new page
           doc.setFontSize(8);
           doc.text("QF/07/FBP-13, Rev.No:06 dt 08.10.2025", 10, 200);
           doc.addPage();
@@ -235,7 +230,6 @@ const DmmSettingParameters = () => {
         }
       });
 
-      // Add footer QF string on the last page as well
       doc.setFontSize(8);
       doc.text("QF/07/FBP-13, Rev.No:06 dt 08.10.2025", 10, 200);
 

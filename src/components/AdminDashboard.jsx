@@ -4,7 +4,7 @@ import axios from 'axios';
 import { FileDown, Calendar, Users, X, Loader, AlertTriangle, CheckCircle, Settings, FileText, LogOut } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { generateUnPouredMouldPDF, generateDmmSettingPDF, generateChecklistPDF, generateErrorProofPDF } from '../utils/pdfGenerators';
+import { generateUnPouredMouldPDF, generateDmmSettingPDF, generateChecklistPDF, generateErrorProofPDF, generateDisaSettingAdjustmentPDF } from '../utils/pdfGenerators';
 import { removeToken, getUser } from '../utils/auth';
 
 // Toast Notification component for consistency
@@ -67,8 +67,8 @@ const AdminDashboard = () => {
         { name: "DMM Setting Parameters", id: "dmm-setting-parameters" },
         { name: "DISA Operator Checklist", id: "disa-operator" },
         { name: "Layered Process Audit", id: "lpa" },
-        { name: "Moulding Quantity Report", id: "moulding-qty" },
         { name: "Error Proof Verification", id: "error-proof" },
+        { name: "DISA Setting Adjustment Record", id: "disa-setting-adjustment" },
         { name: "Add Users", id: "users", isSpecial: true }
     ];
 
@@ -141,6 +141,9 @@ const AdminDashboard = () => {
                     break;
                 case 'error-proof':
                     generateErrorProofPDF(data, dateRange);
+                    break;
+                case 'disa-setting-adjustment':
+                    generateDisaSettingAdjustmentPDF(data, dateRange);
                     break;
                 default:
                     setNotification({ show: true, type: 'error', message: 'Report format mapping not found.' });

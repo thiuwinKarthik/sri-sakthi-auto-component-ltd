@@ -79,6 +79,16 @@ exports.getReport = async (req, res) => {
       `;
       data = { verifications: verificationsResult.recordset, plans: reactionPlansResult.recordset };
     }
+    else if (type === 'disa-setting-adjustment') {
+      const result = await sql.query`
+        SELECT id, recordDate, mouldCountNo, prevMouldCountNo, noOfMoulds,
+               workCarriedOut, preventiveWorkCarried, remarks
+        FROM DISASettingAdjustmentRecord
+        WHERE recordDate BETWEEN ${fromDate} AND ${toDate}
+        ORDER BY recordDate ASC, id ASC
+      `;
+      data = result.recordset;
+    }
     else {
       return res.status(404).json({ error: 'Report type not found or not implemented' });
     }

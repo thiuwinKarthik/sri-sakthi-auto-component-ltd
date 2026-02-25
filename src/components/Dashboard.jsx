@@ -13,6 +13,7 @@ import ConfigFormStructure from "./ConfigFormStructure";
 import ConfigErrorProof from "./ConfigErrorProof";
 import ConfigUnpouredMould from "./ConfigUnpouredMould";
 import ConfigDmmSetting from "./ConfigDmmSetting";
+import ConfigDisaSettingAdjustment from "./ConfigDisaSettingAdjustment";
 import DisamaticProductReport from "./DisamaticProductReport";
 import DISASettingAdjustment from "./DISASettingAdjustment";
 import FourMChangeMonitoring from "./FourMChangeMonitoring";
@@ -70,7 +71,6 @@ const DashboardHome = () => {
     { name: "DISA Settings Parameter", path: "/disa-setting-parameter" },
     { name: "DISA Operator Checklist", path: "/disa-operator" },
     { name: "Layered Process Audit", path: "/lpa" },
-    { name: "Moulding Quantity Report", path: "/moulding-qty" },
     { name: "Error Proof Verification", path: "/error-proof" },
     { name: "4M Change Monitoring", path: "/4m-change" },
     { name: "Error Proof Verification 2", path: "/error-proof2" },
@@ -309,6 +309,10 @@ export default function Dashboard() {
       <Route
         path="/admin/config/dmm-setting-parameters"
         element={<ConfigDmmSetting />}
+      />
+      <Route
+        path="/admin/config/disa-setting-adjustment"
+        element={<ConfigDisaSettingAdjustment />}
       />
       <Route
         path="/admin/config/:formId"

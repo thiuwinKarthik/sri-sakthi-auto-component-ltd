@@ -494,3 +494,98 @@ export const generateErrorProofPDF = (data, dateRange) => {
 
     doc.save(`ErrorProof_Verification_Bulk_${dateRange.from}_to_${dateRange.to}.pdf`);
 };
+
+// --- 6. DISA Setting Adjustment Record ---
+export const generateDisaSettingAdjustmentPDF = (data, dateRange) => {
+    const doc = new jsPDF('l', 'mm', 'a4');
+
+    if (!data || data.length === 0) {
+        doc.setFontSize(14);
+        doc.text("No data found for the selected date range.", 148.5, 40, { align: 'center' });
+        doc.save(`DISA_SettingAdjustment_${dateRange.from}_to_${dateRange.to}.pdf`);
+        return;
+    }
+
+    const processText = (text) => {
+        if (!text) return '';
+        if (text.includes(',') && !text.includes('•')) {
+            return text.split(',').map(item => `• ${item.trim()}`).join('\n');
+        }
+        return text;
+    };
+
+    // Header
+    doc.setLineWidth(0.3);
+    doc.rect(10, 10, 50, 20);
+    doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+    doc.text("SAKTHI", 35, 18, { align: 'center' });
+    doc.text("AUTO", 35, 26, { align: 'center' });
+
+    doc.rect(60, 10, 167, 20);
+    doc.setFontSize(15);
+    doc.text("DISA SETTING ADJUSTMENT RECORD", 143, 22, { align: 'center' });
+
+    doc.rect(227, 10, 60, 20);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text(`From: ${formatDate(dateRange.from)}`, 232, 18);
+    doc.text(`To:   ${formatDate(dateRange.to)}`, 232, 26);
+
+    const tableRows = data.map((row, index) => [
+        index + 1,
+        formatDate(row.recordDate),
+        row.mouldCountNo || '-',
+        row.prevMouldCountNo || '-',
+        row.noOfMoulds != null ? row.noOfMoulds.toString() : '-',
+        processText(row.workCarriedOut) || '-',
+        processText(row.preventiveWorkCarried) || '-',
+        row.remarks || '-'
+    ]);
+
+    autoTable(doc, {
+        startY: 35,
+        margin: { left: 10, right: 10 },
+        head: [[
+            'S.No', 'Date',
+            'Current\nMould\nCounter',
+            'Previous\nMould\nCounter',
+            'No. of\nMoulds',
+            'Work Carried Out',
+            'Preventive Work\nCarried',
+            'Remarks'
+        ]],
+        body: tableRows,
+        theme: 'grid',
+        styles: {
+            fontSize: 8,
+            cellPadding: 2.5,
+            lineColor: [0, 0, 0],
+            lineWidth: 0.15,
+            textColor: [0, 0, 0],
+            valign: 'top',
+            overflow: 'linebreak'
+        },
+        headStyles: {
+            fillColor: [230, 230, 230],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            halign: 'center',
+            valign: 'middle',
+            fontSize: 7.5
+        },
+        columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: 22, halign: 'center' },
+            2: { cellWidth: 22, halign: 'center' },
+            3: { cellWidth: 22, halign: 'center' },
+            4: { cellWidth: 18, halign: 'center' },
+            5: { cellWidth: 'auto' },
+            6: { cellWidth: 'auto' },
+            7: { cellWidth: 35 }
+        }
+    });
+
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+    doc.text("QF/07/FBP-02, Rev. No.01 Dt 14.05.2025", 10, 200);
+
+    doc.save(`DISA_SettingAdjustment_Bulk_${dateRange.from}_to_${dateRange.to}.pdf`);
+};

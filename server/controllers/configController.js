@@ -6,7 +6,9 @@ const tableMapping = {
     'lpa': 'BottomLevelAudit_Master',
     'error-proof': 'ErrorProof_Master',
     'unpoured-mould-details': 'UnpouredMould_Master',
-    'dmm-setting-parameters': 'DmmSetting_Master'
+    'dmm-setting-parameters': 'DmmSetting_Master',
+    'disamatic-production': 'DisamaticProd_Master',
+    'disa-setting-adjustment': 'DisaSettingAdjustment_Master'
 };
 
 exports.getMasterConfig = async (req, res) => {
@@ -54,6 +56,15 @@ exports.getMasterConfig = async (req, res) => {
                 columnLabel: row.ColumnLabel || '',
                 inputType: row.InputType || 'text',
                 columnWidth: row.ColumnWidth || 'w-32',
+                isDeleted: row.IsDeleted || false,
+                isNew: false
+            }));
+        } else if (type === 'disa-setting-adjustment') {
+            standardData = result.recordset.map(row => ({
+                id: row.MasterId,
+                slNo: row.SlNo,
+                parameterName: row.ParameterName || '',
+                description: row.Description || '',
                 isDeleted: row.IsDeleted || false,
                 isNew: false
             }));
@@ -118,6 +129,11 @@ exports.saveMasterConfig = async (req, res) => {
                         INSERT INTO ${tableName} (SlNo, ColumnKey, ColumnLabel, InputType, ColumnWidth, IsDeleted)
                         VALUES (${item.slNo}, '${item.columnKey.replace(/'/g, "''")}', '${item.columnLabel.replace(/'/g, "''")}', '${item.inputType}', '${item.columnWidth}', 0)
                     `);
+                } else if (type === 'disa-setting-adjustment') {
+                    await request.query(`
+                        INSERT INTO ${tableName} (SlNo, ParameterName, Description, IsDeleted)
+                        VALUES (${item.slNo}, '${item.parameterName.replace(/'/g, "''")}', '${item.description.replace(/'/g, "''")}', 0)
+                    `);
                 }
             } else if (!item.isNew) {
                 // UPDATE OR SOFT DELETE EXISTING ROW
@@ -167,6 +183,14 @@ exports.saveMasterConfig = async (req, res) => {
                                 ColumnLabel = '${item.columnLabel.replace(/'/g, "''")}',
                                 InputType = '${item.inputType}',
                                 ColumnWidth = '${item.columnWidth}'
+                            WHERE MasterId = ${item.id}
+                        `);
+                    } else if (type === 'disa-setting-adjustment') {
+                        await request.query(`
+                            UPDATE ${tableName} 
+                            SET SlNo = ${item.slNo}, 
+                                ParameterName = '${item.parameterName.replace(/'/g, "''")}',
+                                Description = '${item.description.replace(/'/g, "''")}'
                             WHERE MasterId = ${item.id}
                         `);
                     }

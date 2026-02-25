@@ -1,13 +1,13 @@
 const { sql, connectDB } = require('./db.js');
 
 async function migrate() {
-    await connectDB();
-    console.log('Starting migration...');
+  await connectDB();
+  console.log('Starting migration...');
 
-    // =============================================
-    // 1. UNPOURED MOULD TABLES
-    // =============================================
-    await sql.query(`
+  // =============================================
+  // 1. UNPOURED MOULD TABLES
+  // =============================================
+  await sql.query(`
     IF OBJECT_ID('UnpouredMould_Master', 'U') IS NULL
     CREATE TABLE UnpouredMould_Master (
       MasterId INT IDENTITY(1,1) PRIMARY KEY,
@@ -17,9 +17,9 @@ async function migrate() {
       IsDeleted BIT DEFAULT 0
     )
   `);
-    console.log('✅ UnpouredMould_Master OK');
+  console.log('✅ UnpouredMould_Master OK');
 
-    await sql.query(`
+  await sql.query(`
     IF OBJECT_ID('UnpouredMould_Trans', 'U') IS NULL
     CREATE TABLE UnpouredMould_Trans (
       TransId INT IDENTITY(1,1) PRIMARY KEY,
@@ -31,11 +31,11 @@ async function migrate() {
       LastUpdated DATETIME DEFAULT GETDATE()
     )
   `);
-    console.log('✅ UnpouredMould_Trans OK');
+  console.log('✅ UnpouredMould_Trans OK');
 
-    const mouldCount = await sql.query(`SELECT COUNT(*) as cnt FROM UnpouredMould_Master`);
-    if (mouldCount.recordset[0].cnt === 0) {
-        await sql.query(`
+  const mouldCount = await sql.query(`SELECT COUNT(*) as cnt FROM UnpouredMould_Master`);
+  if (mouldCount.recordset[0].cnt === 0) {
+    await sql.query(`
       INSERT INTO UnpouredMould_Master (Department, ReasonName, SlNo) VALUES 
       ('MOULDING', 'PATTERN CHANGE', 1),
       ('MOULDING', 'HEAT CODE CHANGE', 2),
@@ -62,15 +62,15 @@ async function migrate() {
       ('OTHERS', 'VAT CLEANING', 23),
       ('OTHERS', 'OTHERS', 24)
     `);
-        console.log('✅ Seeded 24 UnpouredMould_Master rows');
-    } else {
-        console.log('✅ UnpouredMould_Master already has data, skipping seed');
-    }
+    console.log('✅ Seeded 24 UnpouredMould_Master rows');
+  } else {
+    console.log('✅ UnpouredMould_Master already has data, skipping seed');
+  }
 
-    // =============================================
-    // 2. DMM SETTING TABLES
-    // =============================================
-    await sql.query(`
+  // =============================================
+  // 2. DMM SETTING TABLES
+  // =============================================
+  await sql.query(`
     IF OBJECT_ID('DmmSetting_Master', 'U') IS NULL
     CREATE TABLE DmmSetting_Master (
       MasterId INT IDENTITY(1,1) PRIMARY KEY,
@@ -82,9 +82,9 @@ async function migrate() {
       IsDeleted BIT DEFAULT 0
     )
   `);
-    console.log('✅ DmmSetting_Master OK');
+  console.log('✅ DmmSetting_Master OK');
 
-    await sql.query(`
+  await sql.query(`
     IF OBJECT_ID('DmmSetting_Trans', 'U') IS NULL
     CREATE TABLE DmmSetting_Trans (
       TransId INT IDENTITY(1,1) PRIMARY KEY,
@@ -97,11 +97,11 @@ async function migrate() {
       LastUpdated DATETIME DEFAULT GETDATE()
     )
   `);
-    console.log('✅ DmmSetting_Trans OK');
+  console.log('✅ DmmSetting_Trans OK');
 
-    const dmmCount = await sql.query(`SELECT COUNT(*) as cnt FROM DmmSetting_Master`);
-    if (dmmCount.recordset[0].cnt === 0) {
-        await sql.query(`
+  const dmmCount = await sql.query(`SELECT COUNT(*) as cnt FROM DmmSetting_Master`);
+  if (dmmCount.recordset[0].cnt === 0) {
+    await sql.query(`
       INSERT INTO DmmSetting_Master (ColumnKey, ColumnLabel, InputType, ColumnWidth, SlNo) VALUES 
       ('Customer', 'CUSTOMER', 'text', 'w-32', 1),
       ('ItemDescription', 'ITEM DESCRIPTION', 'text', 'w-40', 2),
@@ -123,15 +123,15 @@ async function migrate() {
       ('CloseUpForce', 'CLOSE UP FORCE (Kg)', 'number', 'w-24', 18),
       ('Remarks', 'REMARKS', 'text', 'w-48', 19)
     `);
-        console.log('✅ Seeded 19 DmmSetting_Master rows');
-    } else {
-        console.log('✅ DmmSetting_Master already has data, skipping seed');
-    }
+    console.log('✅ Seeded 19 DmmSetting_Master rows');
+  } else {
+    console.log('✅ DmmSetting_Master already has data, skipping seed');
+  }
 
-    // =============================================
-    // 3. ERROR PROOF TABLES
-    // =============================================
-    await sql.query(`
+  // =============================================
+  // 3. ERROR PROOF TABLES
+  // =============================================
+  await sql.query(`
     IF OBJECT_ID('ErrorProof_Master', 'U') IS NULL
     CREATE TABLE ErrorProof_Master (
       MasterId INT IDENTITY(1,1) PRIMARY KEY,
@@ -143,9 +143,9 @@ async function migrate() {
       IsDeleted BIT DEFAULT 0
     )
   `);
-    console.log('✅ ErrorProof_Master OK');
+  console.log('✅ ErrorProof_Master OK');
 
-    await sql.query(`
+  await sql.query(`
     IF OBJECT_ID('ErrorProof_Trans', 'U') IS NULL
     CREATE TABLE ErrorProof_Trans (
       TransId INT IDENTITY(1,1) PRIMARY KEY,
@@ -160,27 +160,67 @@ async function migrate() {
       LastUpdated DATETIME DEFAULT GETDATE()
     )
   `);
-    console.log('✅ ErrorProof_Trans OK');
+  console.log('✅ ErrorProof_Trans OK');
 
-    const epCount = await sql.query(`SELECT COUNT(*) as cnt FROM ErrorProof_Master`);
-    if (epCount.recordset[0].cnt === 0) {
-        await sql.query(`
+  const epCount = await sql.query(`SELECT COUNT(*) as cnt FROM ErrorProof_Master`);
+  if (epCount.recordset[0].cnt === 0) {
+    await sql.query(`
       INSERT INTO ErrorProof_Master (Line, ErrorProofName, NatureOfErrorProof, Frequency, SlNo) VALUES
       ('DISA Line 1', 'Sand Mould Height Check', 'Physical / Visual', 'S', 1),
       ('DISA Line 1', 'Squeeze Pressure Verification', 'Gauge Check', 'S', 2),
       ('DISA Line 2', 'Pattern Alignment Check', 'Visual', 'S', 3),
       ('DISA Line 2', 'Core Mask Height Verification', 'Gauge Check', 'S', 4)
     `);
-        console.log('✅ Seeded 4 ErrorProof_Master rows');
-    } else {
-        console.log('✅ ErrorProof_Master already has data, skipping seed');
-    }
+    console.log('✅ Seeded 4 ErrorProof_Master rows');
+  } else {
+    console.log('✅ ErrorProof_Master already has data, skipping seed');
+  }
 
-    console.log('\n🎉 Migration complete!');
-    process.exit(0);
+  // =============================================
+  // 4. DISA SETTING ADJUSTMENT MASTER TABLE
+  // =============================================
+  await sql.query(`
+    IF OBJECT_ID('DisaSettingAdjustment_Master', 'U') IS NULL
+    CREATE TABLE DisaSettingAdjustment_Master (
+      MasterId INT IDENTITY(1,1) PRIMARY KEY,
+      ParameterName NVARCHAR(200),
+      Description NVARCHAR(MAX),
+      SlNo INT,
+      IsDeleted BIT DEFAULT 0
+    )
+  `);
+  console.log('✅ DisaSettingAdjustment_Master OK');
+
+  const disaAdjCount = await sql.query(`SELECT COUNT(*) as cnt FROM DisaSettingAdjustment_Master`);
+  if (disaAdjCount.recordset[0].cnt === 0) {
+    await sql.query(`
+      INSERT INTO DisaSettingAdjustment_Master (ParameterName, Description, SlNo) VALUES 
+      ('Sand Shot Pressure', 'Setting for sand shot pressure (bar)', 1),
+      ('Squeeze Pressure', 'Setting for squeeze pressure (Kg/Cm2)', 2),
+      ('PP Thickness', 'Pattern plate thickness adjustment (mm)', 3),
+      ('PP Height', 'Pattern plate height adjustment (mm)', 4),
+      ('SP Thickness', 'Strike plate thickness adjustment (mm)', 5),
+      ('SP Height', 'Strike plate height adjustment (mm)', 6),
+      ('Core Mask Height (Outside)', 'Core mask height outside adjustment (mm)', 7),
+      ('Core Mask Height (Inside)', 'Core mask height inside adjustment (mm)', 8),
+      ('Mould Thickness', 'Mould thickness adjustment (10mm units)', 9),
+      ('Close Up Force', 'Close up force adjustment (Kg)', 10),
+      ('PP Stripping Acceleration', 'Pattern plate stripping acceleration setting', 11),
+      ('PP Stripping Distance', 'Pattern plate stripping distance setting', 12),
+      ('SP Stripping Acceleration', 'Strike plate stripping acceleration setting', 13),
+      ('SP Stripping Distance', 'Strike plate stripping distance setting', 14),
+      ('Sand Shot Correction Time', 'Correction of sand shot time (seconds)', 15)
+    `);
+    console.log('✅ Seeded 15 DisaSettingAdjustment_Master rows');
+  } else {
+    console.log('✅ DisaSettingAdjustment_Master already has data, skipping seed');
+  }
+
+  console.log('\n🎉 Migration complete!');
+  process.exit(0);
 }
 
 migrate().catch(e => {
-    console.error('❌ Migration failed:', e.message);
-    process.exit(1);
+  console.error('❌ Migration failed:', e.message);
+  process.exit(1);
 });

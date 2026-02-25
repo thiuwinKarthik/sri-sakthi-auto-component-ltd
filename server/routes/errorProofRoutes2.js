@@ -117,9 +117,13 @@ router.post("/add-reaction", async (req, res) => {
 /**
  * GET PDF REPORT
  */
+/**
+ * GET PDF REPORT
+ */
 router.get("/report", async (req, res) => {
     try {
         const pool = await poolPromise;
+        // Order by id ASC ensures the latest record is last in the array
         const verificationResult = await pool.request().query(`SELECT * FROM ErrorProofVerification ORDER BY recordDate ASC, id ASC`);
         const reactionResult = await pool.request().query(`SELECT * FROM ReactionPlan ORDER BY id ASC`);
 
@@ -136,29 +140,37 @@ router.get("/report", async (req, res) => {
             return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
         };
 
-        const wLine = 45, wName = 105, wNature = 140, wFreq = 55;
+        const wLine = 45, wName = 110, wNature = 145, wFreq = 45;
         const wDateBox = 135;
         const wShift = wDateBox / 3;
 
         const drawMainHeaders = (y, datesArr = []) => {
             doc.font("Helvetica-Bold").fontSize(14).text("ERROR PROOF VERIFICATION CHECK LIST - FDY", startX, y, { align: "center" });
             const headerTopY = y + 25;
+            
+            doc.fontSize(10); 
+            
             doc.rect(startX, headerTopY, wLine, 60).stroke();
             doc.text("Line", startX, headerTopY + 25, { width: wLine, align: "center" });
+            
             let cx = startX + wLine;
             doc.rect(cx, headerTopY, wName, 60).stroke();
             doc.text("Error Proof\nName", cx, headerTopY + 20, { width: wName, align: "center" });
+            
             cx += wName;
             doc.rect(cx, headerTopY, wNature, 60).stroke();
             doc.text("Nature of\nError Proof", cx, headerTopY + 20, { width: wNature, align: "center" });
+            
             cx += wNature;
             doc.rect(cx, headerTopY, wFreq, 60).stroke();
             doc.text("Frequency\nS,D,W,M", cx, headerTopY + 15, { width: wFreq, align: "center" });
+            
             cx += wFreq;
             for (let i = 0; i < 3; i++) {
                 const boxX = cx + (i * wDateBox);
                 doc.rect(boxX, headerTopY, wDateBox, 20).stroke();
                 let dateLabel = datesArr[i] ? `Date: ${formatDate(datesArr[i])}` : "Date:";
+                
                 doc.font("Helvetica-Bold").fontSize(9).text(dateLabel, boxX + 2, headerTopY + 5, { width: wDateBox, align: "left" });
                 for (let s = 0; s < 3; s++) {
                     doc.rect(boxX + s * wShift, headerTopY + 20, wShift, 20).stroke();
@@ -168,6 +180,7 @@ router.get("/report", async (req, res) => {
                 doc.text("Ist Shift", boxX, headerTopY + 25, { width: wShift, align: "center" });
                 doc.text("IInd Shift", boxX + wShift, headerTopY + 25, { width: wShift, align: "center" });
                 doc.text("IIIrd Shift", boxX + wShift * 2, headerTopY + 25, { width: wShift, align: "center" });
+                
                 doc.text("Observation\nResult", boxX, headerTopY + 42, { width: wShift, align: "center" });
                 doc.text("Observation\nResult", boxX + wShift, headerTopY + 42, { width: wShift, align: "center" });
                 doc.text("Observation\nResult", boxX + wShift * 2, headerTopY + 42, { width: wShift, align: "center" });
@@ -180,6 +193,7 @@ router.get("/report", async (req, res) => {
             const d = new Date(r.recordDate);
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }))].sort();
+        
         const uniqueProofsMap = new Map();
         allRecords.forEach(r => {
             if (!uniqueProofsMap.has(r.errorProofName))
@@ -201,26 +215,53 @@ router.get("/report", async (req, res) => {
                     doc.heightOfString(proofName || "", { width: wName - 8 }) + 20,
                     doc.heightOfString(pd.nature || "", { width: wNature - 8 }) + 20
                 );
+                
                 if (y + rowHeight > doc.page.height - 60) {
                     doc.font("Helvetica-Bold").fontSize(9).text("QF/07/FYQ-05, Rev.No: 02 dt 28.02.2023", startX, y + 10, { align: "left" });
-                    doc.addPage({ layout: "landscape", margin: 30 }); y = drawMainHeaders(30, chunk);
+                    doc.addPage({ layout: "landscape", margin: 30 }); 
+                    y = drawMainHeaders(30, chunk);
                 }
+                
                 let cx = startX;
                 [[wLine, pd.line], [wName, proofName], [wNature, pd.nature], [wFreq, pd.frequency]].forEach(([w, text]) => {
                     doc.rect(cx, y, w, rowHeight).stroke();
-                    doc.text(String(text || ""), cx + 4, y + 10, { width: w - 8, align: "center" });
+                    doc.font("Helvetica").fontSize(8);
+                    const textH = doc.heightOfString(String(text || ""), { width: w - 8 });
+                    doc.text(String(text || ""), cx + 4, y + (rowHeight - textH) / 2, { width: w - 8, align: "center" });
                     cx += w;
                 });
+                
                 for (let i = 0; i < 9; i++) doc.rect(cx + i * wShift, y, wShift, rowHeight).stroke();
+                
                 chunk.forEach((dateStr, dateIndex) => {
-                    allRecords.filter(r => {
-                        const d = new Date(r.recordDate);
-                        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` === dateStr && r.errorProofName === proofName;
-                    }).forEach(record => {
-                        const shiftOffset = record.shift === "II" ? 1 : record.shift === "III" ? 2 : 0;
+                    // FIX: Explicitly target each shift cell one by one to prevent duplicates stacking
+                    ["I", "II", "III"].forEach((shiftLabel, shiftOffset) => {
                         const cellIndex = (dateIndex * 3) + shiftOffset;
-                        doc.fontSize(7).text(record.observationResult === "OK" ? "Checked\nOK" : "Checked\nNot OK",
-                            cx + cellIndex * wShift, y + rowHeight / 2 - 8, { width: wShift, align: "center" });
+                        
+                        // Find all records that match this exact cell
+                        const cellRecords = allRecords.filter(r => {
+                            const d = new Date(r.recordDate);
+                            const rDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            return rDateStr === dateStr && r.errorProofName === proofName && r.shift === shiftLabel;
+                        });
+
+                        // If records exist, only draw the MOST RECENT one
+                        if (cellRecords.length > 0) {
+                            const latestRecord = cellRecords[cellRecords.length - 1];
+                            
+                            const line1 = "Checked";
+                            const line2 = latestRecord.observationResult === "OK" ? "OK" : "Not OK";
+                            
+                            doc.font("Helvetica").fontSize(7);
+                            const h1 = doc.heightOfString(line1, { width: wShift, align: "center" });
+                            const h2 = doc.heightOfString(line2, { width: wShift, align: "center" });
+                            const totalH = h1 + h2;
+                            
+                            const textStartY = y + (rowHeight - totalH) / 2;
+                            
+                            doc.text(line1, cx + cellIndex * wShift, textStartY, { width: wShift, align: "center" });
+                            doc.text(line2, cx + cellIndex * wShift, textStartY + h1, { width: wShift, align: "center" });
+                        }
                     });
                 });
                 y += rowHeight;
@@ -238,7 +279,8 @@ router.get("/report", async (req, res) => {
                 doc.fontSize(8);
                 rHeaders.forEach((h, i) => {
                     doc.rect(currX, headerY, rColWidths[i], 30).stroke();
-                    doc.text(h, currX + 2, headerY + 5, { width: rColWidths[i] - 4, align: "center" });
+                    const th = doc.heightOfString(h, { width: rColWidths[i] - 4 });
+                    doc.text(h, currX + 2, headerY + (30 - th) / 2, { width: rColWidths[i] - 4, align: "center" });
                     currX += rColWidths[i];
                 });
                 return headerY + 30;
@@ -257,7 +299,8 @@ router.get("/report", async (req, res) => {
                 let currX = startX;
                 rowData.forEach((cell, i) => {
                     doc.rect(currX, ry, rColWidths[i], rRowH).stroke();
-                    doc.text(String(cell), currX + 4, ry + 5, { width: rColWidths[i] - 8, align: "center" });
+                    const th = doc.heightOfString(String(cell), { width: rColWidths[i] - 8 });
+                    doc.text(String(cell), currX + 4, ry + (rRowH - th) / 2, { width: rColWidths[i] - 8, align: "center" });
                     currX += rColWidths[i];
                 });
                 ry += rRowH;

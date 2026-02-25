@@ -30,5 +30,5 @@ export const isAuthenticated = () => {
 
 export const isAdmin = () => {
     const user = getUser();
-    return user && user.role === 'admin';
+    return user && user.role && user.role.toUpperCase() === 'ADMIN';
 };

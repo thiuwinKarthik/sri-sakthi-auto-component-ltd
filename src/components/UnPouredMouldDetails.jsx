@@ -53,8 +53,8 @@ const UnPouredMouldDetails = () => {
       setShiftsData(res.data.shiftsData || { 1: {}, 2: {}, 3: {} });
 
       // 2. Fetch Unpoured Details Summary (Bottom Tables)
-      const summaryRes = await axios.get('http://localhost:5000/api/unpoured-details', { 
-        params: { date: headerData.date } 
+      const summaryRes = await axios.get('http://localhost:5000/api/unpoured-details', {
+        params: { date: headerData.date }
       });
       setUnpouredSummary(summaryRes.data || []);
 
@@ -86,26 +86,18 @@ const UnPouredMouldDetails = () => {
   const totalRunningHours = getSummarySum("runningHours").toFixed(2);
   const getDisaData = (disaName) => unpouredSummary.find(d => d.disa === disaName) || {};
 
- const handleSave = async () => {
+  const handleSave = async () => {
     setLoading(true);
     const payloadData = { ...shiftsData };
     [1, 2, 3].forEach(s => { payloadData[s].rowTotal = getRowTotal(s); });
 
     try {
-      // 1. Save Upper Table (Shift Breakdown)
       await axios.post('http://localhost:5000/api/unpoured-moulds/save', {
         date: headerData.date,
         disa: headerData.disaMachine,
         shiftsData: payloadData
       });
-
-      // 2. NEW: Save Lower Tables (Mould Details Summary snapshot)
-      await axios.post('http://localhost:5000/api/unpoured-summary/save', {
-        date: headerData.date,
-        summaryData: unpouredSummary // Passes the auto-calculated array to the backend
-      });
-
-      setNotification({ show: true, type: 'success', message: 'All Data Saved Successfully!' });
+      setNotification({ show: true, type: 'success', message: 'Data Saved Successfully!' });
       setTimeout(() => setNotification({ show: false }), 3000);
     } catch (error) {
       setNotification({ show: true, type: 'error', message: 'Failed to save data.' });
@@ -129,22 +121,24 @@ const UnPouredMouldDetails = () => {
       doc.text(`DATE: ${formattedDate}`, 289 - doc.getTextWidth(`DATE: ${formattedDate}`) - 8, 25);
 
       // --- 1. SHIFTS TABLE ---
+      // Build headRow1 dynamically from the columns master data (same as the UI table)
+      const pdfGroups = [];
+      columns.forEach(col => {
+        if (pdfGroups.length === 0 || pdfGroups[pdfGroups.length - 1].name !== col.group) {
+          pdfGroups.push({ name: col.group, count: 1 });
+        } else {
+          pdfGroups[pdfGroups.length - 1].count++;
+        }
+      });
       const headRow1 = [
         { content: 'SHIFT', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-        { content: 'MOULDING', colSpan: 6, styles: { halign: 'center' } },
-        { content: 'SAND PLANT', colSpan: 2, styles: { halign: 'center' } },
-        { content: 'PREESPOUR', colSpan: 4, styles: { halign: 'center' } },
-        { content: 'QUALITY CONTROL', colSpan: 5, styles: { halign: 'center' } },
-        { content: 'MAINTENANCE', colSpan: 1, styles: { halign: 'center' } },
-        { content: 'FURNACE', colSpan: 1, styles: { halign: 'center' } },
-        { content: 'TOOLING', colSpan: 1, styles: { halign: 'center' } },
-        { content: 'OTHERS', colSpan: 4, styles: { halign: 'center' } },
+        ...pdfGroups.map(g => ({ content: g.name, colSpan: g.count, styles: { halign: 'center' } })),
         { content: 'TOTAL', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fillColor: [220, 220, 220] } }
       ];
 
       const headRow2 = columns.map(col => ({
-        content: col.label, 
-        styles: { halign: 'center', valign: 'middle', fontSize: 5.5 } 
+        content: col.label,
+        styles: { halign: 'center', valign: 'middle', fontSize: 5.5 }
       }));
 
       const bodyRows = [1, 2, 3].map(shift => {
@@ -188,16 +182,16 @@ const UnPouredMouldDetails = () => {
       const summaryBodyRows = ['I', 'II', 'III', 'IV'].map(disa => {
         const row = getDisaData(disa);
         return [
-          disa, 
-          row.mouldCounterClose ?? '-', 
-          row.mouldCounterOpen ?? '-', 
-          row.producedMould ?? '0', 
-          row.pouredMould ?? '0', 
-          row.unpouredMould ?? '0', 
-          row.percentage !== undefined ? `${row.percentage}%` : '0%', 
-          row.delays ?? '0', 
-          row.producedMhr ?? '-', 
-          row.pouredMhr ?? '-', 
+          disa,
+          row.mouldCounterClose ?? '-',
+          row.mouldCounterOpen ?? '-',
+          row.producedMould ?? '0',
+          row.pouredMould ?? '0',
+          row.unpouredMould ?? '0',
+          row.percentage !== undefined ? `${row.percentage}%` : '0%',
+          row.delays ?? '0',
+          row.producedMhr ?? '-',
+          row.pouredMhr ?? '-',
           row.runningHours ?? '0'
         ];
       });
@@ -211,11 +205,11 @@ const UnPouredMouldDetails = () => {
         styles: { fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.15, textColor: [0, 0, 0], halign: 'center', valign: 'middle' },
         headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
         didParseCell: function (data) {
-            if (data.section === 'body' && data.row.index === summaryBodyRows.length - 1) {
-              data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.fillColor = [240, 240, 240];
-            }
+          if (data.section === 'body' && data.row.index === summaryBodyRows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [240, 240, 240];
           }
+        }
       });
 
       // --- 3. SIDE-BY-SIDE SUMMARY TABLES ---
@@ -227,15 +221,15 @@ const UnPouredMouldDetails = () => {
         margin: { right: 155 },
         head: [[{ content: 'NO. OF MOULDS/DAY', colSpan: 5, styles: { halign: 'left' } }], ['', 'DISA 1', 'DISA 2', 'DISA 3', 'DISA 4']],
         body: [
-            ['MOULD / DAY', getDisaData('I').producedMould ?? '0', getDisaData('II').producedMould ?? '0', getDisaData('III').producedMould ?? '0', getDisaData('IV').producedMould ?? '0'],
-            ['TOTAL', { content: totalProduced, colSpan: 4 }]
+          ['MOULD / DAY', getDisaData('I').producedMould ?? '0', getDisaData('II').producedMould ?? '0', getDisaData('III').producedMould ?? '0', getDisaData('IV').producedMould ?? '0'],
+          ['TOTAL', { content: totalProduced, colSpan: 4 }]
         ],
         theme: 'grid',
         styles: { fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.15, textColor: [0, 0, 0], halign: 'center', valign: 'middle' },
         headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
         didParseCell: function (data) {
-            if (data.section === 'body' && data.row.index === 1) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [240, 240, 240]; }
-            if (data.section === 'body' && data.column.index === 0) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [250, 250, 250]; }
+          if (data.section === 'body' && data.row.index === 1) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [240, 240, 240]; }
+          if (data.section === 'body' && data.column.index === 0) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [250, 250, 250]; }
         }
       });
 
@@ -245,15 +239,15 @@ const UnPouredMouldDetails = () => {
         margin: { left: 155 },
         head: [[{ content: 'NO. OF QUANTITY/DAY', colSpan: 5, styles: { halign: 'left' } }], ['', 'DISA 1', 'DISA 2', 'DISA 3', 'DISA 4']],
         body: [
-            ['QTY / DAY', getDisaData('I').pouredMould ?? '0', getDisaData('II').pouredMould ?? '0', getDisaData('III').pouredMould ?? '0', getDisaData('IV').pouredMould ?? '0'],
-            ['TOTAL', { content: totalPoured, colSpan: 4 }]
+          ['QTY / DAY', getDisaData('I').pouredMould ?? '0', getDisaData('II').pouredMould ?? '0', getDisaData('III').pouredMould ?? '0', getDisaData('IV').pouredMould ?? '0'],
+          ['TOTAL', { content: totalPoured, colSpan: 4 }]
         ],
         theme: 'grid',
         styles: { fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.15, textColor: [0, 0, 0], halign: 'center', valign: 'middle' },
         headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
         didParseCell: function (data) {
-            if (data.section === 'body' && data.row.index === 1) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [240, 240, 240]; }
-            if (data.section === 'body' && data.column.index === 0) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [250, 250, 250]; }
+          if (data.section === 'body' && data.row.index === 1) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [240, 240, 240]; }
+          if (data.section === 'body' && data.column.index === 0) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [250, 250, 250]; }
         }
       });
 
@@ -354,123 +348,123 @@ const UnPouredMouldDetails = () => {
 
         {/* --- Unpoured Details Summaries (New Integration) --- */}
         <div className="p-6">
-            
-            {/* Main Details Table */}
-            <div className="overflow-x-auto mb-8 shadow-sm rounded-lg border border-gray-300">
-                <table className="w-full border-collapse border border-gray-300 text-center text-sm">
-                    <thead className="bg-gray-100 font-bold text-gray-700 uppercase">
-                        <tr>
-                            <th className="border border-gray-300 p-3 w-16">DISA</th>
-                            <th className="border border-gray-300 p-3">MOULD COUNTER<br/>CLOSE</th>
-                            <th className="border border-gray-300 p-3">MOULD COUNTER<br/>OPEN</th>
-                            <th className="border border-gray-300 p-3">PRODUCED<br/>MOULD</th>
-                            <th className="border border-gray-300 p-3">POURED<br/>MOULD</th>
-                            <th className="border border-gray-300 p-3">UNPOURED<br/>MOULD</th>
-                            <th className="border border-gray-300 p-3 w-16">%</th>
-                            <th className="border border-gray-300 p-3">DELAYS</th>
-                            <th className="border border-gray-300 p-3">PRODUCED<br/>M/HR</th>
-                            <th className="border border-gray-300 p-3">POURED<br/>M/HR</th>
-                            <th className="border border-gray-300 p-3">RUNNING<br/>HOURS</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-gray-800">
-                        {['I', 'II', 'III', 'IV'].map((disaName) => {
-                            const row = getDisaData(disaName);
-                            return (
-                                <tr key={disaName} className="hover:bg-gray-50 transition-colors">
-                                    <td className="border border-gray-300 p-3 font-bold bg-gray-50">{disaName}</td>
-                                    <td className="border border-gray-300 p-3">{row.mouldCounterClose ?? "-"}</td>
-                                    <td className="border border-gray-300 p-3">{row.mouldCounterOpen ?? "-"}</td>
-                                    <td className="border border-gray-300 p-3">{row.producedMould ?? "-"}</td>
-                                    <td className="border border-gray-300 p-3">{row.pouredMould ?? "-"}</td>
-                                    <td className="border border-gray-300 p-3">{row.unpouredMould ?? "-"}</td>
-                                    <td className="border border-gray-300 p-3 font-medium text-blue-600">
-                                      {row.percentage !== undefined && row.percentage !== "" ? `${row.percentage}%` : "-"}
-                                    </td>
-                                    <td className="border border-gray-300 p-3 text-red-500">{row.delays ?? "-"}</td>
-                                    <td className="border border-gray-300 p-3">{row.producedMhr ?? "-"}</td>
-                                    <td className="border border-gray-300 p-3">{row.pouredMhr ?? "-"}</td>
-                                    <td className="border border-gray-300 p-3 font-medium text-green-600">{row.runningHours ?? "-"}</td>
-                                </tr>
-                            );
-                        })}
-                        <tr className="font-black bg-gray-200 text-gray-900">
-                            <td className="border border-gray-400 p-3 text-left">TOTAL</td>
-                            <td className="border border-gray-400 p-3"></td>
-                            <td className="border border-gray-400 p-3"></td>
-                            <td className="border border-gray-400 p-3">{totalProduced}</td>
-                            <td className="border border-gray-400 p-3">{totalPoured}</td>
-                            <td className="border border-gray-400 p-3 text-orange-600">{totalUnpoured}</td>
-                            <td className="border border-gray-400 p-3">{totalPercentage}%</td>
-                            <td className="border border-gray-400 p-3 text-red-600">{totalDelays}</td>
-                            <td className="border border-gray-400 p-3"></td>
-                            <td className="border border-gray-400 p-3"></td>
-                            <td className="border border-gray-400 p-3 text-green-700">{totalRunningHours}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
 
-            {/* Bottom Summaries */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* NO. OF MOULDS/DAY */}
-                <table className="w-full border-collapse border border-gray-300 text-center text-sm shadow-sm rounded-lg overflow-hidden">
-                    <thead className="bg-gray-100 font-bold text-gray-700">
-                        <tr>
-                            <th colSpan="5" className="border border-gray-300 p-3 text-left">NO. OF MOULDS/DAY</th>
-                        </tr>
-                        <tr>
-                            <th className="border border-gray-300 p-2 bg-gray-50 w-32"></th>
-                            <th className="border border-gray-300 p-2">DISA 1</th>
-                            <th className="border border-gray-300 p-2">DISA 2</th>
-                            <th className="border border-gray-300 p-2">DISA 3</th>
-                            <th className="border border-gray-300 p-2">DISA 4</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-gray-800">
-                        <tr>
-                            <td className="border border-gray-300 p-3 font-bold bg-gray-50 text-left text-xs uppercase tracking-wider">MOULD / DAY</td>
-                            <td className="border border-gray-300 p-3">{getDisaData('I').producedMould ?? "0"}</td>
-                            <td className="border border-gray-300 p-3">{getDisaData('II').producedMould ?? "0"}</td>
-                            <td className="border border-gray-300 p-3">{getDisaData('III').producedMould ?? "0"}</td>
-                            <td className="border border-gray-300 p-3">{getDisaData('IV').producedMould ?? "0"}</td>
-                        </tr>
-                        <tr className="font-black bg-gray-200">
-                            <td className="border border-gray-400 p-3 text-left">TOTAL</td>
-                            <td className="border border-gray-400 p-3 text-center text-lg text-orange-700" colSpan="4">{totalProduced}</td>
-                        </tr>
-                    </tbody>
-                </table>
+          {/* Main Details Table */}
+          <div className="overflow-x-auto mb-8 shadow-sm rounded-lg border border-gray-300">
+            <table className="w-full border-collapse border border-gray-300 text-center text-sm">
+              <thead className="bg-gray-100 font-bold text-gray-700 uppercase">
+                <tr>
+                  <th className="border border-gray-300 p-3 w-16">DISA</th>
+                  <th className="border border-gray-300 p-3">MOULD COUNTER<br />CLOSE</th>
+                  <th className="border border-gray-300 p-3">MOULD COUNTER<br />OPEN</th>
+                  <th className="border border-gray-300 p-3">PRODUCED<br />MOULD</th>
+                  <th className="border border-gray-300 p-3">POURED<br />MOULD</th>
+                  <th className="border border-gray-300 p-3">UNPOURED<br />MOULD</th>
+                  <th className="border border-gray-300 p-3 w-16">%</th>
+                  <th className="border border-gray-300 p-3">DELAYS</th>
+                  <th className="border border-gray-300 p-3">PRODUCED<br />M/HR</th>
+                  <th className="border border-gray-300 p-3">POURED<br />M/HR</th>
+                  <th className="border border-gray-300 p-3">RUNNING<br />HOURS</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-800">
+                {['I', 'II', 'III', 'IV'].map((disaName) => {
+                  const row = getDisaData(disaName);
+                  return (
+                    <tr key={disaName} className="hover:bg-gray-50 transition-colors">
+                      <td className="border border-gray-300 p-3 font-bold bg-gray-50">{disaName}</td>
+                      <td className="border border-gray-300 p-3">{row.mouldCounterClose ?? "-"}</td>
+                      <td className="border border-gray-300 p-3">{row.mouldCounterOpen ?? "-"}</td>
+                      <td className="border border-gray-300 p-3">{row.producedMould ?? "-"}</td>
+                      <td className="border border-gray-300 p-3">{row.pouredMould ?? "-"}</td>
+                      <td className="border border-gray-300 p-3">{row.unpouredMould ?? "-"}</td>
+                      <td className="border border-gray-300 p-3 font-medium text-blue-600">
+                        {row.percentage !== undefined && row.percentage !== "" ? `${row.percentage}%` : "-"}
+                      </td>
+                      <td className="border border-gray-300 p-3 text-red-500">{row.delays ?? "-"}</td>
+                      <td className="border border-gray-300 p-3">{row.producedMhr ?? "-"}</td>
+                      <td className="border border-gray-300 p-3">{row.pouredMhr ?? "-"}</td>
+                      <td className="border border-gray-300 p-3 font-medium text-green-600">{row.runningHours ?? "-"}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="font-black bg-gray-200 text-gray-900">
+                  <td className="border border-gray-400 p-3 text-left">TOTAL</td>
+                  <td className="border border-gray-400 p-3"></td>
+                  <td className="border border-gray-400 p-3"></td>
+                  <td className="border border-gray-400 p-3">{totalProduced}</td>
+                  <td className="border border-gray-400 p-3">{totalPoured}</td>
+                  <td className="border border-gray-400 p-3 text-orange-600">{totalUnpoured}</td>
+                  <td className="border border-gray-400 p-3">{totalPercentage}%</td>
+                  <td className="border border-gray-400 p-3 text-red-600">{totalDelays}</td>
+                  <td className="border border-gray-400 p-3"></td>
+                  <td className="border border-gray-400 p-3"></td>
+                  <td className="border border-gray-400 p-3 text-green-700">{totalRunningHours}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-                {/* NO. OF QUANTITY/DAY */}
-                <table className="w-full border-collapse border border-gray-300 text-center text-sm shadow-sm rounded-lg overflow-hidden">
-                    <thead className="bg-gray-100 font-bold text-gray-700">
-                        <tr>
-                            <th colSpan="5" className="border border-gray-300 p-3 text-left">NO. OF QUANTITY/DAY</th>
-                        </tr>
-                        <tr>
-                            <th className="border border-gray-300 p-2 bg-gray-50 w-32"></th>
-                            <th className="border border-gray-300 p-2">DISA 1</th>
-                            <th className="border border-gray-300 p-2">DISA 2</th>
-                            <th className="border border-gray-300 p-2">DISA 3</th>
-                            <th className="border border-gray-300 p-2">DISA 4</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-gray-800">
-                        <tr>
-                            <td className="border border-gray-300 p-3 font-bold bg-gray-50 text-left text-xs uppercase tracking-wider">QTY / DAY</td>
-                            <td className="border border-gray-300 p-3">{getDisaData('I').pouredMould ?? "0"}</td>
-                            <td className="border border-gray-300 p-3">{getDisaData('II').pouredMould ?? "0"}</td>
-                            <td className="border border-gray-300 p-3">{getDisaData('III').pouredMould ?? "0"}</td>
-                            <td className="border border-gray-300 p-3">{getDisaData('IV').pouredMould ?? "0"}</td>
-                        </tr>
-                        <tr className="font-black bg-gray-200">
-                            <td className="border border-gray-400 p-3 text-left">TOTAL</td>
-                            <td className="border border-gray-400 p-3 text-center text-lg text-orange-700" colSpan="4">{totalPoured}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+          {/* Bottom Summaries */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* NO. OF MOULDS/DAY */}
+            <table className="w-full border-collapse border border-gray-300 text-center text-sm shadow-sm rounded-lg overflow-hidden">
+              <thead className="bg-gray-100 font-bold text-gray-700">
+                <tr>
+                  <th colSpan="5" className="border border-gray-300 p-3 text-left">NO. OF MOULDS/DAY</th>
+                </tr>
+                <tr>
+                  <th className="border border-gray-300 p-2 bg-gray-50 w-32"></th>
+                  <th className="border border-gray-300 p-2">DISA 1</th>
+                  <th className="border border-gray-300 p-2">DISA 2</th>
+                  <th className="border border-gray-300 p-2">DISA 3</th>
+                  <th className="border border-gray-300 p-2">DISA 4</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-800">
+                <tr>
+                  <td className="border border-gray-300 p-3 font-bold bg-gray-50 text-left text-xs uppercase tracking-wider">MOULD / DAY</td>
+                  <td className="border border-gray-300 p-3">{getDisaData('I').producedMould ?? "0"}</td>
+                  <td className="border border-gray-300 p-3">{getDisaData('II').producedMould ?? "0"}</td>
+                  <td className="border border-gray-300 p-3">{getDisaData('III').producedMould ?? "0"}</td>
+                  <td className="border border-gray-300 p-3">{getDisaData('IV').producedMould ?? "0"}</td>
+                </tr>
+                <tr className="font-black bg-gray-200">
+                  <td className="border border-gray-400 p-3 text-left">TOTAL</td>
+                  <td className="border border-gray-400 p-3 text-center text-lg text-orange-700" colSpan="4">{totalProduced}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* NO. OF QUANTITY/DAY */}
+            <table className="w-full border-collapse border border-gray-300 text-center text-sm shadow-sm rounded-lg overflow-hidden">
+              <thead className="bg-gray-100 font-bold text-gray-700">
+                <tr>
+                  <th colSpan="5" className="border border-gray-300 p-3 text-left">NO. OF QUANTITY/DAY</th>
+                </tr>
+                <tr>
+                  <th className="border border-gray-300 p-2 bg-gray-50 w-32"></th>
+                  <th className="border border-gray-300 p-2">DISA 1</th>
+                  <th className="border border-gray-300 p-2">DISA 2</th>
+                  <th className="border border-gray-300 p-2">DISA 3</th>
+                  <th className="border border-gray-300 p-2">DISA 4</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-800">
+                <tr>
+                  <td className="border border-gray-300 p-3 font-bold bg-gray-50 text-left text-xs uppercase tracking-wider">QTY / DAY</td>
+                  <td className="border border-gray-300 p-3">{getDisaData('I').pouredMould ?? "0"}</td>
+                  <td className="border border-gray-300 p-3">{getDisaData('II').pouredMould ?? "0"}</td>
+                  <td className="border border-gray-300 p-3">{getDisaData('III').pouredMould ?? "0"}</td>
+                  <td className="border border-gray-300 p-3">{getDisaData('IV').pouredMould ?? "0"}</td>
+                </tr>
+                <tr className="font-black bg-gray-200">
+                  <td className="border border-gray-400 p-3 text-left">TOTAL</td>
+                  <td className="border border-gray-400 p-3 text-center text-lg text-orange-700" colSpan="4">{totalPoured}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* --- Footer Action Bar --- */}
