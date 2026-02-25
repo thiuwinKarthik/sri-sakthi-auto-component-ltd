@@ -137,3 +137,50 @@ exports.downloadUnpouredPDF = async (req, res) => {
         res.status(500).json({ error: "Failed to generate PDF" });
     }
 };
+// Add this to the bottom of unpouredController.js
+
+exports.saveUnpouredSummary = async (req, res) => {
+    const { date, summaryData } = req.body;
+
+    try {
+        const pool = await poolPromise;
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        // 1. Clear existing summary data for this date to prevent duplicates/errors
+        const deleteReq = new sql.Request(transaction);
+        deleteReq.input('date', sql.Date, date);
+        await deleteReq.query(`DELETE FROM UnpouredMouldSummary WHERE reportDate = @date`);
+
+        // 2. Loop through the 4 DISA rows and save them
+        for (const row of summaryData) {
+            const insertReq = new sql.Request(transaction);
+            
+            insertReq.input('date', sql.Date, date);
+            insertReq.input('disa', sql.VarChar, row.disa);
+            insertReq.input('mouldCounterClose', sql.VarChar, String(row.mouldCounterClose || '-'));
+            insertReq.input('mouldCounterOpen', sql.VarChar, String(row.mouldCounterOpen || '-'));
+            insertReq.input('producedMould', sql.Int, parseInt(row.producedMould) || 0);
+            insertReq.input('pouredMould', sql.Int, parseInt(row.pouredMould) || 0);
+            insertReq.input('unpouredMould', sql.Int, parseInt(row.unpouredMould) || 0);
+            insertReq.input('percentage', sql.Decimal(5,2), parseFloat(row.percentage) || 0);
+            insertReq.input('delays', sql.Int, parseInt(row.delays) || 0);
+            insertReq.input('producedMhr', sql.Decimal(10,2), parseFloat(row.producedMhr) || 0);
+            insertReq.input('pouredMhr', sql.Decimal(10,2), parseFloat(row.pouredMhr) || 0);
+            insertReq.input('runningHours', sql.Decimal(10,2), parseFloat(row.runningHours) || 0);
+
+            await insertReq.query(`
+                INSERT INTO UnpouredMouldSummary 
+                (reportDate, disa, mouldCounterClose, mouldCounterOpen, producedMould, pouredMould, unpouredMould, percentage, delays, producedMhr, pouredMhr, runningHours)
+                VALUES (@date, @disa, @mouldCounterClose, @mouldCounterOpen, @producedMould, @pouredMould, @unpouredMould, @percentage, @delays, @producedMhr, @pouredMhr, @runningHours)
+            `);
+        }
+
+        await transaction.commit();
+        res.status(200).json({ message: "Summary Data Saved Successfully!" });
+
+    } catch (error) {
+        console.error("Error saving summary:", error);
+        res.status(500).json({ error: "Failed to save summary data" });
+    }
+};

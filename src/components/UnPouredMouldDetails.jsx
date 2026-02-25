@@ -86,18 +86,26 @@ const UnPouredMouldDetails = () => {
   const totalRunningHours = getSummarySum("runningHours").toFixed(2);
   const getDisaData = (disaName) => unpouredSummary.find(d => d.disa === disaName) || {};
 
-  const handleSave = async () => {
+ const handleSave = async () => {
     setLoading(true);
     const payloadData = { ...shiftsData };
     [1, 2, 3].forEach(s => { payloadData[s].rowTotal = getRowTotal(s); });
 
     try {
+      // 1. Save Upper Table (Shift Breakdown)
       await axios.post('http://localhost:5000/api/unpoured-moulds/save', {
         date: headerData.date,
         disa: headerData.disaMachine,
         shiftsData: payloadData
       });
-      setNotification({ show: true, type: 'success', message: 'Data Saved Successfully!' });
+
+      // 2. NEW: Save Lower Tables (Mould Details Summary snapshot)
+      await axios.post('http://localhost:5000/api/unpoured-summary/save', {
+        date: headerData.date,
+        summaryData: unpouredSummary // Passes the auto-calculated array to the backend
+      });
+
+      setNotification({ show: true, type: 'success', message: 'All Data Saved Successfully!' });
       setTimeout(() => setNotification({ show: false }), 3000);
     } catch (error) {
       setNotification({ show: true, type: 'error', message: 'Failed to save data.' });
