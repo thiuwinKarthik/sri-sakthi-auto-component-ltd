@@ -7,6 +7,9 @@ import autoTable from 'jspdf-autotable';
 import { generateUnPouredMouldPDF, generateDmmSettingPDF, generateChecklistPDF, generateErrorProofPDF, generateDisaSettingAdjustmentPDF } from '../utils/pdfGenerators';
 import { removeToken, getUser } from '../utils/auth';
 
+// Import the 4M Config component
+import ConfigFourMColumns from './ConfigFourMColumns'; 
+
 // Toast Notification component for consistency
 const NotificationToast = ({ data, onClose }) => {
     const isError = data.type === 'error';
@@ -45,13 +48,15 @@ const NotificationToast = ({ data, onClose }) => {
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
-
     const user = getUser();
 
     const handleLogout = () => {
         removeToken();
         navigate('/login');
     };
+
+    // Added local state to control what is visible on the screen
+    const [activeView, setActiveView] = useState('grid'); 
 
     // Modal States
     const [actionModal, setActionModal] = useState({ show: false, selectedForm: null });
@@ -69,6 +74,7 @@ const AdminDashboard = () => {
         { name: "Layered Process Audit", id: "lpa" },
         { name: "Error Proof Verification", id: "error-proof" },
         { name: "DISA Setting Adjustment Record", id: "disa-setting-adjustment" },
+        { name: "4M Monitoring", id: "4m-change" }, 
         { name: "Add Users", id: "users", isSpecial: true }
     ];
 
@@ -88,14 +94,17 @@ const AdminDashboard = () => {
     };
 
     const handleManageForm = (form) => {
-        const configForms = ['disa-operator', 'lpa', 'error-proof', 'unpoured-mould-details', 'dmm-setting-parameters'];
+        const configForms = ['disa-operator', 'lpa', 'error-proof', 'unpoured-mould-details', 'dmm-setting-parameters', 'disa-setting-adjustment', '4m-change'];
         setActionModal({ show: false, selectedForm: null });
 
         if (configForms.includes(form.id)) {
-            // Master Schema Setup Route
-            navigate(`/admin/config/${form.id}`);
+            if (form.id === '4m-change') {
+                // Switch the local state instead of using React Router's navigate
+                setActiveView('4m-config'); 
+            } else {
+                navigate(`/admin/config/${form.id}`);
+            }
         } else {
-            // Data Entry Route acting as Manage Data
             navigate(`/${form.id}`);
         }
     };
@@ -110,7 +119,6 @@ const AdminDashboard = () => {
         setNotification({ show: true, type: 'loading', message: 'Generating PDF Report...' });
 
         try {
-            // Check if it's one of the forms that doesn't have a backend yet
             const noBackendForms = ["performance", "moulding-qty", "disamatic-report"];
             if (noBackendForms.includes(pdfModal.selectedForm.id)) {
                 setNotification({ show: true, type: 'error', message: `${pdfModal.selectedForm.name} data module is currently pending implementation.` });
@@ -118,33 +126,30 @@ const AdminDashboard = () => {
                 return;
             }
 
-            // Fetch Real Data using the Date Range
+            // Handle 4M Change Server-Side PDF Generator
+            if (pdfModal.selectedForm.id === '4m-change') {
+                window.open(`http://localhost:5000/api/4m-change/report?fromDate=${dateRange.from}&toDate=${dateRange.to}`, "_blank");
+                
+                setNotification({ show: true, type: 'success', message: 'Report generated in new tab!' });
+                setPdfModal({ show: false, selectedForm: null });
+                setLoading(false);
+                return; 
+            }
+
+            // The rest of your existing axios.get code for the other reports
             const res = await axios.get(`http://localhost:5000/api/reports/${pdfModal.selectedForm.id}`, {
                 params: { fromDate: dateRange.from, toDate: dateRange.to }
             });
 
             const data = res.data;
 
-            // Route to specific native PDF generator based on form ID
             switch (pdfModal.selectedForm.id) {
-                case 'unpoured-mould-details':
-                    generateUnPouredMouldPDF(data, dateRange);
-                    break;
-                case 'dmm-setting-parameters':
-                    generateDmmSettingPDF(data, dateRange);
-                    break;
-                case 'disa-operator':
-                    generateChecklistPDF(data, dateRange, "DISA MACHINE OPERATOR CHECK SHEET", "Non-Conformance Report");
-                    break;
-                case 'lpa':
-                    generateChecklistPDF(data, dateRange, "BOTTOM LEVEL PROCESS AUDIT", "Non-Conformance Report");
-                    break;
-                case 'error-proof':
-                    generateErrorProofPDF(data, dateRange);
-                    break;
-                case 'disa-setting-adjustment':
-                    generateDisaSettingAdjustmentPDF(data, dateRange);
-                    break;
+                case 'unpoured-mould-details': generateUnPouredMouldPDF(data, dateRange); break;
+                case 'dmm-setting-parameters': generateDmmSettingPDF(data, dateRange); break;
+                case 'disa-operator': generateChecklistPDF(data, dateRange, "DISA MACHINE OPERATOR CHECK SHEET", "Non-Conformance Report"); break;
+                case 'lpa': generateChecklistPDF(data, dateRange, "BOTTOM LEVEL PROCESS AUDIT", "Non-Conformance Report"); break;
+                case 'error-proof': generateErrorProofPDF(data, dateRange); break;
+                case 'disa-setting-adjustment': generateDisaSettingAdjustmentPDF(data, dateRange); break;
                 default:
                     setNotification({ show: true, type: 'error', message: 'Report format mapping not found.' });
                     setLoading(false);
@@ -156,18 +161,37 @@ const AdminDashboard = () => {
 
         } catch (error) {
             setNotification({ show: true, type: 'error', message: 'Failed to generate PDF.' });
-        }
+        } // <--- THIS CATCH BLOCK WAS MISSING!
 
         setLoading(false);
     };
 
+    // This intercepts the normal render if '4m-config' is active
+    if (activeView === '4m-config') {
+        return (
+            <div className="relative w-full min-h-screen bg-gray-100">
+                {/* Back button to return to the Admin Grid */}
+                <button 
+                    onClick={() => setActiveView('grid')}
+                    className="absolute top-6 left-6 z-[100] flex items-center gap-2 bg-[#ff9100] text-white font-bold px-4 py-2 rounded shadow-lg hover:bg-orange-600 transition-colors uppercase tracking-wider text-sm"
+                >
+                    ← Back to Modules
+                </button>
+                
+                {/* Render your 4M Config screen */}
+                <ConfigFourMColumns />
+            </div>
+        );
+    }
+
+    // Default Render: The normal Admin Dashboard Grid
     return (
         <div className="h-screen w-screen bg-[#2d2d2d] flex flex-col overflow-hidden font-sans relative">
             <NotificationToast data={notification} onClose={() => setNotification(prev => ({ ...prev, show: false }))} />
 
             <div className="h-1.5 bg-[#ff9100] flex-shrink-0 shadow-[0_0_15px_rgba(255,145,0,0.5)]" />
 
-            {/* Navigation Bar matching original dashboard (Moved to Top Left) */}
+            {/* Navigation Bar */}
             <div className="w-full flex justify-between items-center px-10 pt-6 absolute top-0 left-0 z-10">
                 <Link to="/admin" className="flex items-center gap-2 text-[#ff9100] font-bold uppercase tracking-wider text-sm hover:text-white transition-colors bg-white/5 px-4 py-2 rounded-lg border border-white/10 hover:border-[#ff9100]/50 shadow-lg backdrop-blur-sm">
                     ← Back to Dashboard

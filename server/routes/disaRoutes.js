@@ -9,10 +9,6 @@ const fs = require("fs");
 //  CUSTOM COLUMN MANAGEMENT  (Admin only)
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * GET /api/disa/custom-columns
- * Get all active custom columns
- */
 router.get("/custom-columns", async (req, res) => {
     try {
         const pool = await poolPromise;
@@ -29,10 +25,6 @@ router.get("/custom-columns", async (req, res) => {
     }
 });
 
-/**
- * POST /api/disa/custom-columns
- * Add a new custom column (admin only)
- */
 router.post("/custom-columns", async (req, res) => {
     const { columnName } = req.body;
     if (!columnName || !columnName.trim()) {
@@ -40,11 +32,9 @@ router.post("/custom-columns", async (req, res) => {
     }
     try {
         const pool = await poolPromise;
-        // Get max displayOrder
-        const maxRes = await pool.request().query(`
-            SELECT ISNULL(MAX(displayOrder), 0) AS maxOrder FROM DISACustomColumns WHERE isDeleted = 0
-        `);
+        const maxRes = await pool.request().query(`SELECT ISNULL(MAX(displayOrder), 0) AS maxOrder FROM DISACustomColumns WHERE isDeleted = 0`);
         const nextOrder = maxRes.recordset[0].maxOrder + 1;
+        
         const result = await pool.request()
             .input('columnName', sql.NVarChar, columnName.trim())
             .input('displayOrder', sql.Int, nextOrder)
@@ -60,10 +50,25 @@ router.post("/custom-columns", async (req, res) => {
     }
 });
 
-/**
- * DELETE /api/disa/custom-columns/:id
- * Soft-delete a custom column (admin only)
- */
+router.put("/custom-columns/:id", async (req, res) => {
+    const { id } = req.params;
+    const { columnName } = req.body;
+    if (!columnName || !columnName.trim()) {
+        return res.status(400).json({ message: "Column name is required" });
+    }
+    try {
+        const pool = await poolPromise;
+        await pool.request()
+            .input('id', sql.Int, id)
+            .input('columnName', sql.NVarChar, columnName.trim())
+            .query(`UPDATE DISACustomColumns SET columnName = @columnName WHERE id = @id`);
+        res.json({ message: "Custom column updated successfully" });
+    } catch (err) {
+        console.error("Error updating custom column:", err);
+        res.status(500).json({ message: "Update failed", error: err.message });
+    }
+});
+
 router.delete("/custom-columns/:id", async (req, res) => {
     const { id } = req.params;
     try {
@@ -82,10 +87,6 @@ router.delete("/custom-columns/:id", async (req, res) => {
 //  CORE RECORD ROUTES
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * GET /api/disa/last-mould-count
- * Returns the most recent mould counter number
- */
 router.get("/last-mould-count", async (req, res) => {
     try {
         const pool = await poolPromise;
@@ -102,26 +103,15 @@ router.get("/last-mould-count", async (req, res) => {
     }
 });
 
-/**
- * POST /api/disa/add
- * Insert a new DISA Setting Adjustment record (with optional custom column values)
- */
 router.post("/add", async (req, res) => {
     const {
-        recordDate,
-        mouldCountNo,
-        prevMouldCountNo,
-        noOfMoulds,
-        workCarriedOut,
-        preventiveWorkCarried,
-        remarks,
-        customValues  // { columnId: value, ... }
+        recordDate, mouldCountNo, prevMouldCountNo, noOfMoulds,
+        workCarriedOut, preventiveWorkCarried, remarks, customValues
     } = req.body;
 
     try {
         const pool = await poolPromise;
 
-        // Insert main record and get new id
         const insertResult = await pool.request()
             .input('recordDate', sql.Date, recordDate)
             .input('mouldCountNo', sql.VarChar, String(mouldCountNo))
@@ -144,7 +134,6 @@ router.post("/add", async (req, res) => {
 
         const newRecordId = insertResult.recordset[0].id;
 
-        // Insert custom column values if provided
         if (customValues && typeof customValues === 'object') {
             for (const [columnId, value] of Object.entries(customValues)) {
                 if (value !== undefined && value !== null && String(value).trim() !== '') {
@@ -167,16 +156,11 @@ router.post("/add", async (req, res) => {
     }
 });
 
-/**
- * GET /api/disa/records
- * Fetch all DISA records with custom column values (admin view), optional date filter
- */
 router.get("/records", async (req, res) => {
     try {
         const { fromDate, toDate } = req.query;
         const pool = await poolPromise;
 
-        // Build base query
         let query = `
             SELECT id, recordDate, mouldCountNo, prevMouldCountNo, noOfMoulds,
                    workCarriedOut, preventiveWorkCarried, remarks
@@ -195,7 +179,6 @@ router.get("/records", async (req, res) => {
 
         if (records.length === 0) return res.json([]);
 
-        // Fetch custom column values for all returned records
         const ids = records.map(r => r.id).join(',');
         const valResult = await pool.request().query(`
             SELECT recordId, columnId, value
@@ -203,7 +186,6 @@ router.get("/records", async (req, res) => {
             WHERE recordId IN (${ids})
         `);
 
-        // Merge custom values into each record
         const valMap = {};
         valResult.recordset.forEach(v => {
             if (!valMap[v.recordId]) valMap[v.recordId] = {};
@@ -222,27 +204,16 @@ router.get("/records", async (req, res) => {
     }
 });
 
-/**
- * PUT /api/disa/records/:id
- * Update an existing record (including custom column values)
- */
 router.put("/records/:id", async (req, res) => {
     const { id } = req.params;
     const {
-        recordDate,
-        mouldCountNo,
-        prevMouldCountNo,
-        noOfMoulds,
-        workCarriedOut,
-        preventiveWorkCarried,
-        remarks,
-        customValues  // { columnId: value, ... }
+        recordDate, mouldCountNo, prevMouldCountNo, noOfMoulds,
+        workCarriedOut, preventiveWorkCarried, remarks, customValues
     } = req.body;
 
     try {
         const pool = await poolPromise;
 
-        // Update main record
         await pool.request()
             .input('id', sql.Int, id)
             .input('recordDate', sql.Date, recordDate)
@@ -254,23 +225,18 @@ router.put("/records/:id", async (req, res) => {
             .input('remarks', sql.NVarChar, remarks || '')
             .query(`
                 UPDATE DISASettingAdjustmentRecord
-                SET recordDate = @recordDate,
-                    mouldCountNo = @mouldCountNo,
-                    prevMouldCountNo = @prevMouldCountNo,
-                    noOfMoulds = @noOfMoulds,
-                    workCarriedOut = @workCarriedOut,
-                    preventiveWorkCarried = @preventiveWorkCarried,
+                SET recordDate = @recordDate, mouldCountNo = @mouldCountNo,
+                    prevMouldCountNo = @prevMouldCountNo, noOfMoulds = @noOfMoulds,
+                    workCarriedOut = @workCarriedOut, preventiveWorkCarried = @preventiveWorkCarried,
                     remarks = @remarks
                 WHERE id = @id
             `);
 
-        // Upsert custom column values
         if (customValues && typeof customValues === 'object') {
             for (const [columnId, value] of Object.entries(customValues)) {
                 const colId = parseInt(columnId);
                 const strVal = value !== null && value !== undefined ? String(value) : '';
 
-                // Check if value row exists
                 const existing = await pool.request()
                     .input('recordId', sql.Int, id)
                     .input('columnId', sql.Int, colId)
@@ -299,18 +265,12 @@ router.put("/records/:id", async (req, res) => {
     }
 });
 
-/**
- * DELETE /api/disa/records/:id
- * Delete a DISA record (cascades to custom column values)
- */
 router.delete("/records/:id", async (req, res) => {
     const { id } = req.params;
     try {
         const pool = await poolPromise;
-        // Custom column values cascade-deleted via FK
-        await pool.request()
-            .input('id', sql.Int, id)
-            .query(`DELETE FROM DISASettingAdjustmentRecord WHERE id = @id`);
+        await pool.request().input('id', sql.Int, id).query(`DELETE FROM DISACustomColumnValues WHERE recordId = @id`);
+        await pool.request().input('id', sql.Int, id).query(`DELETE FROM DISASettingAdjustmentRecord WHERE id = @id`);
         res.json({ message: "Record deleted successfully" });
     } catch (err) {
         console.error("Error deleting record:", err);
@@ -319,69 +279,61 @@ router.delete("/records/:id", async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  PDF REPORT
+//  PDF REPORT 
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * GET /api/disa/report
- * Generate & stream a PDF report of all records
- */
 router.get("/report", async (req, res) => {
     try {
         const pool = await poolPromise;
 
         const result = await pool.request().query(`
-            SELECT recordDate, mouldCountNo, noOfMoulds,
+            SELECT id, recordDate, mouldCountNo, noOfMoulds,
                    workCarriedOut, preventiveWorkCarried, remarks
             FROM DISASettingAdjustmentRecord
             ORDER BY id DESC
         `);
 
-        // Also get custom columns for the PDF
         const colsResult = await pool.request().query(`
             SELECT id, columnName FROM DISACustomColumns WHERE isDeleted = 0 ORDER BY displayOrder ASC, id ASC
         `);
         const customCols = colsResult.recordset;
 
-        // Get custom values if there are custom columns
         let customValMap = {};
         if (customCols.length > 0) {
-            const allIds = result.recordset.map((_, i) => i); // placeholder — will use row offset
-            // NOTE: For the report, we fetch by joining via recordset order
-            const vRes = await pool.request().query(`
-                SELECT r.id AS recordId, cv.columnId, cv.value
-                FROM DISASettingAdjustmentRecord r
-                INNER JOIN DISACustomColumnValues cv ON cv.recordId = r.id
-                ORDER BY r.id DESC
-            `);
+            const vRes = await pool.request().query(`SELECT recordId, columnId, value FROM DISACustomColumnValues`);
             vRes.recordset.forEach(v => {
                 if (!customValMap[v.recordId]) customValMap[v.recordId] = {};
                 customValMap[v.recordId][v.columnId] = v.value;
             });
         }
 
+        // Initialize PDF Document
         const doc = new PDFDocument({ margin: 30, size: "A4", layout: "landscape" });
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", "inline; filename=DISA_Setting_Adjustment_Report.pdf");
         doc.pipe(res);
 
         const startX = 30;
-        const startY = 30;
-        const pageWidth = doc.page.width - 60;
+        let startY = 30;
+        const pageWidth = doc.page.width - 60; 
 
-        const baseColWidths = [80, 110, 80, 165, 165];
-        const baseHeaders = ["Date", "Mould Count No.", "No. of Moulds", "Work Carried Out", "Preventive Work Carried"];
+        const baseHeaders = ["Date", "Mould Count No.", "No. of Moulds", "Work Carried Out", "Preventive Work Carried", "Remarks"];
+        const headers = [...baseHeaders, ...customCols.map(c => c.columnName)];
 
-        // Add Remarks width
-        let remarksWidth = 80;
-        const customColWidth = Math.max(60, Math.floor((pageWidth - baseColWidths.reduce((a, b) => a + b, 0) - remarksWidth) / Math.max(customCols.length, 1)));
-        const colWidths = [...baseColWidths, remarksWidth, ...customCols.map(() => customColWidth)];
-        const headers = [...baseHeaders, "Remarks", ...customCols.map(c => c.columnName)];
+        const baseWeights = [1.2, 1.5, 1.2, 3, 3, 1.5];
+        const customWeights = customCols.map(() => 1.5); 
 
-        const logoBoxWidth = baseColWidths[0] + baseColWidths[1];
+        const allWeights = [...baseWeights, ...customWeights];
+        const totalWeight = allWeights.reduce((sum, w) => sum + w, 0);
+        const colWidths = allWeights.map(w => (w / totalWeight) * pageWidth);
+
+        const logoBoxWidth = colWidths[0] + colWidths[1];
         const titleBoxWidth = pageWidth - logoBoxWidth;
         const headerHeight = 60;
         const minRowHeight = 35;
+
+        const headerFontSize = headers.length > 8 ? 7 : 9;
+        const bodyFontSize = headers.length > 8 ? 7 : 9;
 
         const drawHeaders = (y) => {
             doc.rect(startX, y, logoBoxWidth, headerHeight).stroke();
@@ -402,7 +354,7 @@ router.get("/report", async (req, res) => {
 
             const tableHeaderY = y + headerHeight;
             let currentX = startX;
-            doc.font("Helvetica-Bold").fontSize(9);
+            doc.font("Helvetica-Bold").fontSize(headerFontSize);
             headers.forEach((header, i) => {
                 doc.rect(currentX, tableHeaderY, colWidths[i], minRowHeight).stroke();
                 doc.text(header, currentX + 3, tableHeaderY + 10, {
@@ -413,13 +365,13 @@ router.get("/report", async (req, res) => {
             return tableHeaderY + minRowHeight;
         };
 
-        const drawFooter = (yPos) => {
+        const drawFooter = () => {
+            const footerY = doc.page.height - 40; 
             doc.font("Helvetica").fontSize(8);
             const controlText = "QF/07/FBP-02, Rev. No.01 Dt 14.05.2025";
-            const textY = yPos + 10;
-            doc.text(controlText, startX, textY, { align: "left" });
+            doc.text(controlText, startX, footerY, { align: "left" });
             const textWidth = doc.widthOfString(controlText);
-            doc.moveTo(startX, textY + 12).lineTo(startX + textWidth, textY + 12).lineWidth(1).stroke();
+            doc.moveTo(startX, footerY + 12).lineTo(startX + textWidth, footerY + 12).lineWidth(1).stroke();
         };
 
         const processText = (text) => {
@@ -432,17 +384,10 @@ router.get("/report", async (req, res) => {
 
         let y = drawHeaders(startY);
 
-        // Need record IDs to look up custom values — re-query with id
-        const resultWithId = await pool.request().query(`
-            SELECT id, recordDate, mouldCountNo, noOfMoulds,
-                   workCarriedOut, preventiveWorkCarried, remarks
-            FROM DISASettingAdjustmentRecord
-            ORDER BY id DESC
-        `);
-
-        resultWithId.recordset.forEach((row) => {
+        result.recordset.forEach((row) => {
             const formattedDate = new Date(row.recordDate).toLocaleDateString("en-GB");
             const customData = customCols.map(c => customValMap[row.id]?.[c.id] || "");
+            
             const rowData = [
                 formattedDate, row.mouldCountNo, row.noOfMoulds,
                 processText(row.workCarriedOut), processText(row.preventiveWorkCarried),
@@ -450,15 +395,17 @@ router.get("/report", async (req, res) => {
             ];
 
             let maxRowHeight = minRowHeight;
-            doc.font("Helvetica").fontSize(9);
+            doc.font("Helvetica").fontSize(bodyFontSize);
+            
             rowData.forEach((cell, i) => {
                 const h = doc.heightOfString(String(cell || ""), { width: colWidths[i] - 6 });
                 if (h + 20 > maxRowHeight) maxRowHeight = h + 20;
             });
 
-            if (y + maxRowHeight + 30 > doc.page.height - 30) {
-                drawFooter(y);
-                doc.addPage({ layout: "landscape", margin: 30 });
+            // FIXED: Forced page size to inherit exactly matching Page 1
+            if (y + maxRowHeight > doc.page.height - 70) {
+                drawFooter();
+                doc.addPage({ size: "A4", layout: "landscape", margin: 30 }); // <--- Fixes the clipping layout bug
                 y = drawHeaders(30);
             }
 
@@ -471,7 +418,7 @@ router.get("/report", async (req, res) => {
             y += maxRowHeight;
         });
 
-        drawFooter(y);
+        drawFooter();
         doc.end();
     } catch (err) {
         console.error("Error generating DISA report:", err);

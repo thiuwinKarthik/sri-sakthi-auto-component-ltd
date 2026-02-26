@@ -22,7 +22,8 @@ const NotificationToast = ({ data, onClose }) => {
                 flex items-center gap-4 px-6 py-4 rounded-xl shadow-2xl backdrop-blur-md border 
                 ${isError ? 'bg-red-500/10 border-red-500/30 text-red-200'
                     : isLoading ? 'bg-[#ff9100]/10 border-[#ff9100]/30 text-[#ff9100]'
-                        : 'bg-green-500/10 border-green-500/30 text-green-200'}`}>
+                        : 'bg-green-500/10 border-green-500/30 text-green-200'}
+            `}>
                 <div className="flex-shrink-0">
                     {isLoading ? <Loader className="w-6 h-6 animate-spin" /> : isError ? <AlertTriangle className="w-6 h-6 text-red-500" /> : <CheckCircle className="w-6 h-6 text-green-500" />}
                 </div>
@@ -37,15 +38,28 @@ const NotificationToast = ({ data, onClose }) => {
     );
 };
 
-const ConfigDisaSettingAdjustment = () => {
+const ConfigDisaColumns = () => {
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [notification, setNotification] = useState({ show: false, type: '', message: '' });
+
+    // Config State
     const [items, setItems] = useState([]);
 
-    const API_BASE = `http://localhost:5000/api/config/disa-setting-adjustment`;
+    const API_BASE = `http://localhost:5000/api/disa/custom-columns`;
+
+    // Hardcoded permanent columns for visual context
+    const permanentCols = [
+        "Date",
+        "Current Mould Counter",
+        "Previous Mould Counter",
+        "No. of Moulds",
+        "Work Carried Out",
+        "Preventive Work Carried",
+        "Remarks"
+    ];
 
     useEffect(() => {
         fetchConfig();
@@ -54,8 +68,14 @@ const ConfigDisaSettingAdjustment = () => {
     const fetchConfig = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${API_BASE}/master`);
-            setItems(res.data.config || []);
+            const res = await axios.get(API_BASE);
+            const mappedData = res.data.map(item => ({
+                id: item.id,
+                columnName: item.columnName,
+                isDeleted: false,
+                isNew: false
+            }));
+            setItems(mappedData);
         } catch (error) {
             setNotification({ show: true, type: 'error', message: 'Failed to load configuration.' });
         } finally {
@@ -66,9 +86,7 @@ const ConfigDisaSettingAdjustment = () => {
     const handleAddRow = () => {
         setItems([...items, {
             id: Date.now(),
-            slNo: items.length + 1,
-            parameterName: '',
-            description: '',
+            columnName: '',
             isDeleted: false,
             isNew: true
         }]);
@@ -91,10 +109,26 @@ const ConfigDisaSettingAdjustment = () => {
         setNotification({ show: true, type: 'loading', message: 'Syncing configuration with database...' });
 
         try {
-            const activeData = items.filter(c => !(c.isNew && c.isDeleted));
-            await axios.post(`${API_BASE}/master`, { config: activeData });
+            // 1. Delete items marked for deletion
+            const itemsToDelete = items.filter(c => !c.isNew && c.isDeleted);
+            for (const item of itemsToDelete) {
+                await axios.delete(`${API_BASE}/${item.id}`);
+            }
 
-            setNotification({ show: true, type: 'success', message: 'Parameters Saved Successfully!' });
+            // 2. Update existing rows (PUT)
+            const itemsToUpdate = items.filter(c => !c.isNew && !c.isDeleted && c.columnName.trim() !== "");
+            for (const item of itemsToUpdate) {
+                await axios.put(`${API_BASE}/${item.id}`, { columnName: item.columnName });
+            }
+
+            // 3. Add new rows (POST)
+            const itemsToAdd = items.filter(c => c.isNew && !c.isDeleted && c.columnName.trim() !== '');
+            for (const item of itemsToAdd) {
+                await axios.post(API_BASE, { columnName: item.columnName });
+            }
+
+            setNotification({ show: true, type: 'success', message: 'Schema Updated Successfully!' });
+            await fetchConfig(); // Refresh actual DB IDs
             setTimeout(() => navigate('/admin'), 1500);
         } catch (error) {
             setNotification({ show: true, type: 'error', message: 'Failed to save configuration.' });
@@ -109,7 +143,7 @@ const ConfigDisaSettingAdjustment = () => {
 
             <div className="h-1.5 bg-[#ff9100] flex-shrink-0 shadow-[0_0_15px_rgba(255,145,0,0.5)]" />
 
-            {/* Config Header Bar */}
+            {/* Config Header bar */}
             <div className="bg-[#222] border-b border-white/5 py-4 px-10 flex items-center justify-between sticky top-0 z-50">
                 <div className="flex items-center gap-6">
                     <Link to="/admin" className="text-white/50 hover:text-[#ff9100] transition-colors p-2 rounded-lg hover:bg-white/5">
@@ -120,7 +154,7 @@ const ConfigDisaSettingAdjustment = () => {
                             <Settings className="w-5 h-5 text-[#ff9100]" />
                             <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Master Schema Config</span>
                         </div>
-                        <h1 className="text-2xl font-black text-white uppercase tracking-wider">DISA SETTING ADJUSTMENT RECORD</h1>
+                        <h1 className="text-2xl font-black text-white uppercase tracking-wider">DISA SETTING: EXTRA COLUMNS</h1>
                     </div>
                 </div>
 
@@ -130,106 +164,98 @@ const ConfigDisaSettingAdjustment = () => {
                     className="bg-[#ff9100] hover:bg-orange-500 text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_0_15px_rgba(255,145,0,0.3)] transition-all flex items-center gap-2 uppercase text-sm disabled:opacity-50"
                 >
                     {saving ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    Save Parameters
+                    Save Columns
                 </button>
             </div>
 
-            {/* Info Banner */}
-            <div className="max-w-7xl w-full mx-auto px-10 pt-8">
-                <div className="bg-[#ff9100]/5 border border-[#ff9100]/20 rounded-xl p-4 text-white/60 text-sm flex items-start gap-3">
-                    <Settings className="w-5 h-5 text-[#ff9100] flex-shrink-0 mt-0.5" />
-                    <span>
-                        Manage the configurable parameters / work categories for the <strong className="text-white">DISA Setting Adjustment Record</strong> form.
-                        These entries define the parameter names and descriptions that appear in the operator's adjustment record.
-                    </span>
-                </div>
-            </div>
-
             {/* Main Configuration Editor */}
-            <div className="flex-1 max-w-7xl w-full mx-auto p-10 pt-6">
+            <div className="flex-1 max-w-5xl w-full mx-auto p-10">
+
+                <div className="mb-6 bg-[#ff9100]/5 border border-[#ff9100]/20 rounded-xl p-4 text-white/60 text-sm">
+                    The table below defines the structure of the DISA Setting Adjustment Record. The permanent columns are locked, but you can append custom columns to the end of the form.
+                </div>
+
                 <div className="bg-[#383838] border border-white/5 rounded-2xl shadow-xl overflow-hidden">
                     {/* Table Header */}
-                    <div className="bg-black/20 grid grid-cols-12 gap-4 p-4 border-b border-white/5 text-xs font-bold text-white/50 uppercase tracking-widest">
-                        <div className="col-span-1 text-center">S.No</div>
-                        <div className="col-span-4">Parameter Name</div>
-                        <div className="col-span-6">Description</div>
-                        <div className="col-span-1 text-center">Action</div>
+                    <div className="bg-black/20 grid grid-cols-12 gap-4 p-4 border-b border-white/5 text-xs font-bold text-white/50 uppercase tracking-widest text-center">
+                        <div className="col-span-1">S.No</div>
+                        <div className="col-span-8 text-left">Column Name</div>
+                        <div className="col-span-2">Type</div>
+                        <div className="col-span-1">Action</div>
                     </div>
 
                     {/* Skeleton Loader */}
                     {loading ? (
                         <div className="p-10 flex justify-center items-center flex-col gap-4 text-[#ff9100]">
                             <Loader className="w-8 h-8 animate-spin" />
-                            <span className="text-sm font-bold uppercase tracking-widest">Loading Parameters...</span>
+                            <span className="text-sm font-bold uppercase tracking-widest">Loading Settings Matrix...</span>
                         </div>
                     ) : (
                         <div className="divide-y divide-white/5">
-                            {items.length === 0 && (
-                                <div className="p-10 text-center text-white/30 text-sm font-bold uppercase tracking-widest">
-                                    No parameters configured yet. Click "Add New Parameter" below.
-                                </div>
-                            )}
-
-                            {items.map((item, index) => (
-                                <div
-                                    key={item.id}
-                                    className={`grid grid-cols-12 gap-4 p-4 items-center transition-all
-                                        ${item.isDeleted ? 'opacity-40 bg-red-900/10' : 'hover:bg-white/5'}
-                                        ${item.isNew ? 'border-[#ff9100]/30 border-l-4' : 'border-transparent border-l-4'}
-                                    `}
-                                >
-                                    {/* S.No */}
-                                    <div className="col-span-1 text-center font-bold text-white/50">
-                                        {item.isDeleted ? (
-                                            <span className="text-red-400 text-xs font-black uppercase">DEL</span>
-                                        ) : (
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={item.slNo}
-                                                onChange={(e) => handleUpdateRow(item.id, 'slNo', parseInt(e.target.value) || 1)}
-                                                className="w-12 bg-black/20 border border-white/10 rounded-lg p-1 text-white text-center focus:border-[#ff9100] outline-none text-sm"
-                                            />
-                                        )}
+                            
+                            {/* --- PERMANENT COLUMNS --- */}
+                            {permanentCols.map((col, idx) => (
+                                <div key={`perm-${idx}`} className="grid grid-cols-12 gap-4 p-4 items-center bg-black/10 border-l-4 border-transparent">
+                                    <div className="col-span-1 text-center font-bold text-white/30">
+                                        {idx + 1}
                                     </div>
-
-                                    {/* Parameter Name */}
-                                    <div className="col-span-4">
+                                    <div className="col-span-8">
                                         <input
                                             type="text"
-                                            disabled={item.isDeleted}
-                                            value={item.parameterName}
-                                            onChange={(e) => handleUpdateRow(item.id, 'parameterName', e.target.value)}
-                                            className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-[#ff9100] focus:ring-1 focus:ring-[#ff9100] outline-none text-sm transition-all disabled:cursor-not-allowed"
-                                            placeholder="e.g. Squeeze Pressure"
+                                            disabled
+                                            value={col}
+                                            className="w-full bg-black/10 border border-transparent rounded-lg p-3 text-white/40 cursor-not-allowed outline-none text-sm uppercase"
+                                        />
+                                    </div>
+                                    <div className="col-span-2 text-center">
+                                        <span className="bg-white/5 text-white/40 px-3 py-1 rounded text-xs font-bold uppercase">Fixed</span>
+                                    </div>
+                                    <div className="col-span-1 flex justify-center">
+                                        <span className="text-white/20 text-xs uppercase font-bold tracking-widest">Locked</span>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* --- DIVIDER --- */}
+                            <div className="bg-orange-900/10 border-y border-orange-500/20 py-2 text-center">
+                                <span className="text-orange-500/70 text-[10px] font-black uppercase tracking-[0.2em]">
+                                    --- Dynamic Custom Columns Below ---
+                                </span>
+                            </div>
+
+                            {/* --- CUSTOM COLUMNS --- */}
+                            {items.map((cp, index) => (
+                                <div key={cp.id} className={`grid grid-cols-12 gap-4 p-4 items-center transition-all ${cp.isDeleted ? 'opacity-40 bg-red-900/10' : 'hover:bg-white/5'} ${cp.isNew ? 'border-[#ff9100]/30 border-l-4' : 'border-transparent border-l-4'}`}>
+
+                                    <div className="col-span-1 text-center font-bold text-white/50">
+                                        {cp.isDeleted ? 'DEL' : permanentCols.length + index + 1}
+                                    </div>
+
+                                    <div className="col-span-8">
+                                        <input
+                                            type="text"
+                                            disabled={cp.isDeleted}
+                                            value={cp.columnName}
+                                            onChange={(e) => handleUpdateRow(cp.id, 'columnName', e.target.value)}
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-[#ff9100] focus:ring-1 focus:ring-[#ff9100] outline-none text-sm transition-all disabled:cursor-not-allowed uppercase"
+                                            placeholder="e.g. REMARKS 2"
                                         />
                                     </div>
 
-                                    {/* Description */}
-                                    <div className="col-span-6">
-                                        <textarea
-                                            rows="2"
-                                            disabled={item.isDeleted}
-                                            value={item.description}
-                                            onChange={(e) => handleUpdateRow(item.id, 'description', e.target.value)}
-                                            className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-[#ff9100] focus:ring-1 focus:ring-[#ff9100] outline-none text-sm transition-all disabled:cursor-not-allowed resize-none"
-                                            placeholder="Brief description of this parameter and its expected value range"
-                                        />
+                                    <div className="col-span-2 text-center">
+                                        <span className="bg-[#ff9100]/10 text-[#ff9100] px-3 py-1 rounded text-xs font-bold uppercase">Custom</span>
                                     </div>
 
-                                    {/* Delete Toggle */}
                                     <div className="col-span-1 flex justify-center">
                                         <button
-                                            onClick={() => handleDeleteRow(item.id)}
-                                            className={`p-2 rounded-lg transition-colors ${item.isDeleted
-                                                ? 'bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white'
-                                                : 'text-white/30 hover:bg-red-500/20 hover:text-red-500'
-                                                }`}
-                                            title={item.isDeleted ? 'Restore this row' : 'Mark for deletion'}
+                                            onClick={() => handleDeleteRow(cp.id)}
+                                            className={`p-2 rounded-lg transition-colors ${cp.isDeleted ? 'bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white' : 'text-white/30 hover:bg-red-500/20 hover:text-red-500'}`}
+                                            title={cp.isDeleted ? 'Restore Row' : 'Delete Row'}
                                         >
                                             <Trash2 className="w-5 h-5" />
                                         </button>
                                     </div>
+
                                 </div>
                             ))}
 
@@ -239,12 +265,14 @@ const ConfigDisaSettingAdjustment = () => {
                                     onClick={handleAddRow}
                                     className="w-full py-4 border-2 border-dashed border-white/20 hover:border-[#ff9100] rounded-xl flex items-center justify-center gap-2 text-white/50 hover:text-[#ff9100] font-bold uppercase tracking-widest text-sm transition-all"
                                 >
-                                    <Plus className="w-5 h-5" /> Add New Parameter
+                                    <Plus className="w-5 h-5" /> Add New Custom Column
                                 </button>
                             </div>
+
                         </div>
                     )}
                 </div>
+
             </div>
 
             <style dangerouslySetInnerHTML={{
@@ -256,4 +284,4 @@ const ConfigDisaSettingAdjustment = () => {
     );
 };
 
-export default ConfigDisaSettingAdjustment;
+export default ConfigDisaColumns;
